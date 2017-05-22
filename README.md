@@ -77,6 +77,13 @@ resources such as PBS/Torque.
 cd /path/to/htsohm/repo
 ~/venv/htsohm/bin/python setup.py install
 ```
+
+### Visualising pseudomaterials
+```
+blender empty_scene.blend --background --python blender_script.py <material uuid>
+```
+Note: Blender is a prerequisite for visualisation.  
+
   
 Please send questions/comments/concerns to `ark111@pitt.edu`.
   
