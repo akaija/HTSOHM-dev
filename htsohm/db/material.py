@@ -126,7 +126,10 @@ class Material(Base):
     gas_adsorption_bin = Column(Integer)                     # dimm.
     surface_area_bin = Column(Integer)                        # dimm.
     void_fraction_bin = Column(Integer)                       # dimm.
-
+    average_epsilon = Column(Float)
+    average_sigma = Column(Float)
+    number_density = Column(Float)
+    unit_cell_volume = Column(Float)
 
     def __init__(self, run_id=None, ):
         """Init material-row.
