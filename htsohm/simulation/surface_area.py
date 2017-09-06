@@ -35,7 +35,7 @@ def write_raspa_file(filename, uuid):
             "Framework                  0\n" +
             "FrameworkName              %s\n" % (uuid) +
             "UnitCells                  1 1 1\n" +
-            "SurfaceAreaProbeDistance   Minimum\n" +
+            "SurfaceAreaProbeDistance   Sigma\n" +
             "\n" +
             "Component 0 MoleculeName               N2\n" +
             "            StartingBead               0\n" +
