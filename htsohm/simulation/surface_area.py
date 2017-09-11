@@ -91,7 +91,7 @@ def run(run_id, pseudo_material):
         htsohm_dir = os.path.dirname(os.path.dirname(htsohm.__file__))
         path = os.path.join(htsohm_dir, run_id)
     elif simulation_directory == 'SCRATCH':
-        path = os.environ['SCRATCH']
+        path = os.environ['LOCAL']
     else:
         print('OUTPUT DIRECTORY NOT FOUND.')
     output_dir = os.path.join(path, 'output_%s_%s' % (pseudo_material.uuid, uuid4()))
