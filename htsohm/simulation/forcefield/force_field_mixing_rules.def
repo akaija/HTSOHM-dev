@@ -1,0 +1,17 @@
+# general rule for shifted vs truncated
+shifted
+# general rule tailcorrections
+no
+# number of defined interactions
+$NumberOfDefinedInteractions
+# type interaction, parameters. IMPORTANT: define shortest matches first, so that more specific ones overwrites these.
+N_n2        lennard-jones      36.0    3.31
+C_co2       lennard-jones      27.0    2.80
+O_co2       lennard-jones      79.0    3.05
+CH4_sp3     lennard-jones     158.5    3.72
+He          lennard-jones      10.9    2.64
+H_com       lennard-jones      36.7    2.958
+Kr          lennard-jones     167.06   3.924
+Xe          lennard-jones     110.704  3.690
+N_com       none
+H_h2        none
