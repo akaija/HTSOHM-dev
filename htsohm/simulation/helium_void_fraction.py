@@ -7,8 +7,8 @@ from uuid import uuid4
 from string import Template
 
 import htsohm
-from htsohm.material_files import write_cif_file, write_mixing_rules
-from htsohm.material_files import write_pseudo_atoms, write_force_field
+from htsohm.simulation.forcefield.files import write_cif_file, write_mixing_rules
+from htsohm.simulation.forcefield.files import write_force_field, write_pseudo_atoms
 from htsohm.simulation.calculate_bin import calc_bin
 
 def write_raspa_file(filename, uuid, params):
@@ -98,7 +98,7 @@ def run(material, simulation_config):
     write_cif_file(material, output_dir)
     # Lennard-Jones parameters, force_field_mixing_rules.def
     write_mixing_rules(material, output_dir)
-    # Pseudoatom definitions, pseudo_atoms.def (placeholder values)
+    # Pseudoatom definitions, pseudo_atoms.def
     write_pseudo_atoms(material, output_dir)
     # Overwritten interactions, force_field.def (none overwritten by default)
     write_force_field(output_dir)
@@ -110,7 +110,7 @@ def run(material, simulation_config):
             print("Time :\t%s" % datetime.now().time().isoformat())
             print("Calculating void fraction of %s..." % (material.uuid))
             subprocess.run(['simulate', './VoidFraction.input'], check=True, cwd=output_dir)
-            filename = "output_%s_2.2.2_298.000000_0.data" % (material.uuid)
+            filename = "output_%s_1.1.1_298.000000_0.data" % (material.uuid)
             output_file = os.path.join(output_dir, 'Output', 'System_0', filename)
 
             # Parse output

@@ -8,7 +8,7 @@ CutOff                  12.8
 
 Framework               0
 FrameworkName           $FrameworkName
-UnitCells               2 2 2
+UnitCells               1 1 1
 ExternalTemperature     298.0
 
 Component 0 MoleculeName                helium

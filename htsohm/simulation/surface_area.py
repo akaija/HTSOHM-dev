@@ -7,8 +7,8 @@ from uuid import uuid4
 from string import Template
 
 import htsohm
-from htsohm.material_files import write_cif_file, write_mixing_rules
-from htsohm.material_files import write_pseudo_atoms, write_force_field
+from htsohm.simulation.forcefield.files import write_cif_file, write_mixing_rules
+from htsohm.simulation.forcefield.files import write_force_field, write_pseudo_atoms
 from htsohm.simulation.calculate_bin import calc_bin
 
 def write_raspa_file(filename, uuid, params):
@@ -108,7 +108,7 @@ def run(material, simulation_config):
     write_cif_file(material, output_dir)
     # Lennard-Jones parameters, force_field_mixing_rules.def
     write_mixing_rules(material, output_dir)
-    # Pseudoatom definitions, pseudo_atoms.def (placeholder values)
+    # Pseudoatom definitions, pseudo_atoms.def
     write_pseudo_atoms(material, output_dir)
     # Overwritten interactions, force_field.def (none overwritten by default)
     write_force_field(output_dir)

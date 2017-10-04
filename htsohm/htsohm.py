@@ -13,7 +13,7 @@ import yaml
 import htsohm
 from htsohm import config
 from htsohm.db import engine, session, Material, MutationStrength, Structure
-from htsohm.material_files import generate_material, mutate_material
+from htsohm.modify_structures import generate_material, mutate_material
 from htsohm import simulation
 
 def materials_in_generation(run_id, generation):

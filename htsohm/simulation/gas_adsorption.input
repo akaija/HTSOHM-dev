@@ -9,7 +9,7 @@ CutOff                          12.8
 
 Framework                       0
 FrameworkName                   $FrameworkName
-UnitCells                       2 2 2
+UnitCells                       1 1 1
 HeliumVoidFraction              $HeliumVoidFraction
 ExternalTemperature             $ExternalTemperature
 ExternalPressure                $ExternalPressure
