@@ -4,14 +4,14 @@ import subprocess
 import shutil
 from datetime import datetime
 from uuid import uuid4
+from string import Template
 
 import htsohm
-from htsohm import config
 from htsohm.material_files import write_cif_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 from htsohm.simulation.calculate_bin import calc_bin
 
-def write_raspa_file(filename, material, simulation_config):
+def write_raspa_file(filename, material, params):
     """Writes RASPA input file for simulating gas adsorption.
 
     Args:
@@ -21,55 +21,39 @@ def write_raspa_file(filename, material, simulation_config):
     Writes RASPA input-file.
 
     """
-    simulation_cycles      = simulation_config['simulation_cycles']
-    initialization_cycles  = simulation_config['initialization_cycles']
-    external_temperature   = simulation_config['external_temperature']
-    external_pressure      = simulation_config['external_pressure']
-    adsorbate              = simulation_config['adsorbate']
-       
+    # Set default void fraction value if non was calculated
+    if material.vf_helium_void_fraction == None:
+        void_fraction = 0.
+    else:
+        void_fraction = material.vf_helium_void_fraction
+
+    # Load simulation parameters from config
+    values = {
+            'NumberOfCycles'                : params['simulation_cycles'],
+            'NumberOfInitializationCycles'  : params['initialization_cycles'],
+            'FrameworkName'                 : material.uuid,
+            'HeliumVoidFraction'            : void_fraction,
+            'ExternalTemperature'           : params['external_temperature'],
+            'MoleculeName'                  : params['adsorbate']}
+
+    # Adjust printing multiple pressures (isotherms)
+    if isinstance(params['external_pressure'], list):
+        values.update({'ExternalPressure'   : '{} {}'.format(*params['external_pressure'])})
+    else:
+        values.update({'ExternalPressure'   : params['external_pressure']})
+
+    # Load template and replace values
+    htsohm_dir = os.path.dirname(htsohm.__file__)
+    input_template_path = os.path.join(htsohm_dir, 'simulation', 'gas_adsorption.input')
+    input_file = open(input_template_path)
+    template = Template( input_file.read() )
+    input_data = template.substitute(values)
+
+    print(input_data)
+
+    # Write simulation input-file
     with open(filename, "w") as raspa_input_file:
-        raspa_input_file.write(
-"""SimulationType                 MonteCarlo
-NumberOfCycles                 {}
-NumberOfInitializationCycles   {}
-PrintEvery                     10
-RestartFile                    no
-
-Forcefield     GenericMOFs
-CutOff         12.8 
-
-Framework              0
-FrameworkName          {}
-UnitCells              1 1 1
-""".format(simulation_cycles, initialization_cycles, material.uuid))
-
-        if material.vf_helium_void_fraction != None:
-            raspa_input_file.write(
-"""
-HeliumVoidFraction     {}""".format(material.vf_helium_void_fraction))
-
-        raspa_input_file.write(
-"""
-ExternalTemperature    {}""".format(external_temperature))
-
-        if isinstance(external_pressure, list):
-            raspa_input_file.write(
-"""
-ExternalPressure       {} {}""".format(*external_pressure))
-        else:
-            raspa_input_file.write(
-"""
-ExternalPressure       {}""".format(external_pressure))
-
-        raspa_input_file.write(
-"""
-
-Component 0 MoleculeName               {}
-            MoleculeDefinition         TraPPE
-            TranslationProbability     1.0
-            ReinsertionProbability     1.0
-            SwapProbability            1.0
-            CreateNumberOfMolecules    0""".format(adsorbate))
+        raspa_input_file.write(input_data)
 
 def find_output_file(output_dir, pressure):
     # Currently this method only works for pressure values with only two
@@ -86,7 +70,7 @@ def find_output_file(output_dir, pressure):
                 if p_string in file_name:
                     return os.path.join(output_subdir, file_name)
 
-def parse_output(output_dir, simulation_config):
+def parse_output(output_dir, params):
     """Parse output file for gas adsorption data.
 
     Args:
@@ -101,7 +85,7 @@ def parse_output(output_dir, simulation_config):
     """
     results = {}
 
-    external_pressure = simulation_config['external_pressure']
+    external_pressure = params['external_pressure']
     if isinstance(external_pressure, list):
         ga0_pressure = max(external_pressure)
         ga1_pressure = min(external_pressure)
@@ -162,8 +146,7 @@ def parse_output(output_dir, simulation_config):
         value = abs(results['ga0_absolute_volumetric_loading'] - results['ga1_absolute_volumetric_loading'])
     else:
         value = results['ga0_absolute_volumetric_loading']
-    results['gas_adsorption_bin'] = calc_bin(value, *simulation_config['limits'],
-            config['number_of_convergence_bins'])
+    results['gas_adsorption_bin'] = calc_bin(value, *params['limits'], params['bins'])
 
     return results
 
@@ -177,8 +160,8 @@ def run(material, simulation_config):
         results (dict): gas loading simulation results.
 
     """
-    adsorbate             = simulation_config['adsorbate']
-    simulation_directory  = config['simulations_directory']
+    # Determine where to write simulation input/output files, create directory
+    simulation_directory = simulation_config['directory']
     if simulation_directory == 'HTSOHM':
         htsohm_dir = os.path.dirname(os.path.dirname(htsohm.__file__))
         path = os.path.join(htsohm_dir, material.run_id)
@@ -189,12 +172,23 @@ def run(material, simulation_config):
     output_dir = os.path.join(path, 'output_%s_%s' % (material.uuid, uuid4()))
     print('Output directory :\t%s' % output_dir)
     os.makedirs(output_dir, exist_ok=True)
+
+    # Write simulation input-files
+    params = simulation_config['gas_adsorption']
+    adsorbate = params['adsorbate']
+    # RASPA input-file
     filename = os.path.join(output_dir, '%s_loading.input' % adsorbate)
-    write_raspa_file(filename, material, simulation_config)
+    write_raspa_file(filename, material, params)
+    # Pseudomaterial cif-file
     write_cif_file(material, output_dir)
+    # Lennard-Jones parameters, force_field_mixing_rules.def
     write_mixing_rules(material, output_dir)
+    # Pseudoatom definitions, pseudo_atoms.def (placeholder values)
     write_pseudo_atoms(material, output_dir)
+    # Overwritten interactions, force_field.def (none overwritten by default)
     write_force_field(output_dir)
+
+    # Run simulations
     print("Date :\t%s" % datetime.now().date().isoformat())
     print("Time :\t%s" % datetime.now().time().isoformat())
     print("Simulating %s loading in %s..." % (adsorbate, material.uuid))
@@ -207,7 +201,9 @@ def run(material, simulation_config):
             )
         
             print('OUTPUT DIR:\t%s' % output_dir)
-            results = parse_output(output_dir, simulation_config)
+
+            # Parse output
+            results = parse_output(output_dir, params)
             shutil.rmtree(output_dir, ignore_errors=True)
             sys.stdout.flush()
         except FileNotFoundError as err:

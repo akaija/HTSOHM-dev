@@ -1,0 +1,22 @@
+SimulationType                  MonteCarlo
+NumberOfCycles                  $NumberOfCycles
+NumberOfInitializationCycles    $NumberOfInitializationCycles
+PrintEvery                      10
+RestartFile                     no
+
+Forcefield                      $FrameworkName
+CutOff                          12.8
+
+Framework                       0
+FrameworkName                   $FrameworkName
+UnitCells                       2 2 2
+HeliumVoidFraction              $HeliumVoidFraction
+ExternalTemperature             $ExternalTemperature
+ExternalPressure                $ExternalPressure
+
+Component 0 MoleculeName                $MoleculeName
+            MoleculeDefinition          TraPPE
+            TranslationProbability      1.0
+            ReinsertionProbability      1.0
+            SwapProbability             1.0
+            CreateNumberOfMolecules     0

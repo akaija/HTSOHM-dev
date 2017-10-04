@@ -20,7 +20,6 @@
 #   'simulations_directory'                 str             HTSOHM, SCRATCH
 #   'surface_area_simulation_cycles'        int             0 - inf
 
-simulations_directory: 'HTSOHM'
 children_per_generation: 5
 maximum_number_of_generations: 50
 number_of_atom_types: 4
@@ -47,9 +46,11 @@ interactive_mode: 'on'
 selection_mode: 'manual'
 
 simulations:
+  directory: 'HTSOHM'
   helium_void_fraction:
     simulation_cycles: 100
     limits: [0, 1]
+    bins: 10
   gas_adsorption:
     adsorbate: 'methane'
     external_pressure: [580000, 3500000]
@@ -57,9 +58,11 @@ simulations:
     initialization_cycles: 100
     simulation_cycles: 100
     limits: [0, 300]
+    bins: 10
   surface_area:
     simulation_cycles: 10
     limits: [0, 4500]
+    bins: 10
 #
 #  ADDITIONAL SIMULATION TYPES
 #    - ARTIFICIAL DATA:

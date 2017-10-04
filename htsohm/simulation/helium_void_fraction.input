@@ -1,0 +1,17 @@
+SimulationType          MonteCarlo
+NumberOfCycles          $NumberOfCycles
+PrintEvery              10
+PrintPropertiesEvery    10
+
+Forcefield              $FrameworkName
+CutOff                  12.8
+
+Framework               0
+FrameworkName           $FrameworkName
+UnitCells               2 2 2
+ExternalTemperature     298.0
+
+Component 0 MoleculeName                helium
+            MoleculeDefinition          TraPPE
+            WidomProbability            1.0
+            CreateNumberOfMolecules     0

@@ -201,10 +201,11 @@ def run_all_simulations(material):
     print('  PROPERTY\t|  VALUE\t|  BIN\t      |')
     print('----------------+---------------+-------------|')
 
-    simulation_types = config['simulations']
-    for simulation_type in simulation_types:
-        results = get_simulation(simulation_type).run(material, simulation_types[simulation_type])
-        material.update_from_dict(results)
+    simulation_config = config['simulations']
+    for simulation_type in simulation_config:
+        if simulation_type != 'directory':
+            results = get_simulation(simulation_type).run(material, simulation_config)
+            material.update_from_dict(results)
 
 def retest(m_orig, retests, tolerance):
     """Reproduce simulations  to prevent statistical errors.

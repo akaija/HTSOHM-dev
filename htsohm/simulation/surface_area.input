@@ -1,0 +1,19 @@
+SimulationType          MonteCarlo
+NumberOfCycles          $NumberOfCycles
+
+PrintEvery              1
+PrintPropertiesEvery    1
+
+Forcefield              $FrameworkName
+CutOff                  12.8
+
+Framework                   0
+FrameworkName               $FrameworkName
+UnitCells                   2 2 2
+SurfaceAreaProbeDistance    Sigma
+
+Component 0 MoleculeName                N2
+            StartingBead                0
+            MoleculeDefinition          TraPPE
+            SurfaceAreaProbability      1.0
+            CreateNumberOfMolecules     0
