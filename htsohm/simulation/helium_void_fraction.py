@@ -8,8 +8,8 @@ from string import Template
 
 import htsohm
 from htsohm import config
-from htsohm.material_files import write_cif_file, write_mixing_rules
-from htsohm.material_files import write_pseudo_atoms, write_force_field
+from htsohm.simulation.forcefield.files import write_cif_file, write_mixing_rules
+from htsohm.simulation.forcefield.files import write_pseudo_atoms, write_force_field
 from htsohm.simulation.files import load_and_subs_template
 from htsohm.simulation.calculate_bin import calc_bin
 
