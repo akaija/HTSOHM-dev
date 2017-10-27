@@ -130,6 +130,7 @@ class Material(Base):
     average_sigma = Column(Float)
     number_density = Column(Float)
     unit_cell_volume = Column(Float)
+    phi = Column(Float)
 
     def __init__(self, run_id=None, ):
         """Init material-row.
