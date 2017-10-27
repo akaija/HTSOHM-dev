@@ -9,7 +9,7 @@ import RASPA2
 
 import htsohm
 from htsohm.files import load_config_file
-from htsohm.htsohm import worker_run_loop, calc_bin
+from htsohm.htsohm import worker_run_loop, calc_bin, run_all_one_off, load_pseudo_material, calculate_properties
 from htsohm.db import session, Material
 
 @click.group()
@@ -144,6 +144,38 @@ def launch_worker(run_id):
     """
     htsohm._init(run_id)
     worker_run_loop(run_id)
+
+@hts.command()
+@click.argument('uuid')
+def one_off(uuid):
+    material_id = session.query(Material.id).filter(Material.uuid==uuid).one()[0]
+    old_material = session.query(Material).get(material_id)
+
+    material = Material('one_off')
+    material.uuid = uuid
+    run_id = session.query(Material.run_id).filter(Material.uuid==uuid).one()[0]
+    htsohm_dir = os.path.dirname(os.path.dirname(htsohm.__file__))
+    config = load_config_file(os.path.join(htsohm_dir, run_id, 'config.yaml'))
+
+    pseudo_material = load_pseudo_material(run_id, material)
+    
+    print('SCREENING : {}'.format(uuid))
+    run_all_one_off(material, pseudo_material, config)
+    print('...done!\n')
+
+    print('Pseudomaterial UUID :\t\t{}'.format(uuid))
+
+    print('\n\tOld values :')
+    print('CH4 v/v 35bar :\t\t{}'.format(old_material.ga0_absolute_volumetric_loading))
+    print('He void fraction :\t{}'.format(old_material.vf_helium_void_fraction))
+    print('Vol. surface area :\t{}\n'.format(old_material.sa_volumetric_surface_area))
+
+    print('\n\tNew values :')
+    print('CH4 v/v 35bar :\t\t{}'.format(material.ga0_absolute_volumetric_loading))
+    print('He void fraction :\t{}'.format(material.vf_helium_void_fraction))
+    print('Vol. surface area :\t{}\n'.format(material.sa_volumetric_surface_area))
+
+    calculate_properties(uuid)
 
 if __name__ == '__main__':
     hts()

@@ -1,4 +1,5 @@
 import os
+from math import pi, sqrt, cos
 
 import yaml
 
@@ -56,6 +57,11 @@ class PseudoMaterial:
                 "b" : None, 
                 "c" : None
                 }
+        self.lattice_angles = {
+                "alpha" : None,
+                "beta" : None,
+                "gamma" : None
+                }
         self.atom_types= [
                 {
                     "chemical-id"  : None,
@@ -78,6 +84,7 @@ class PseudoMaterial:
                 '{0.uuid!r}, '
                 '{0.run_id!r}, '
                 '{0.lattice_constants!r}, '
+                '{0.lattice_angles!r}, '
                 '{0.atom_types!r}, '
                 '{0.atom_sites!r})').format(self)
 
@@ -96,11 +103,14 @@ class PseudoMaterial:
             yaml.dump(self, dump_file)
 
     def volume(self):
-        return (
-                self.lattice_constants["a"] *
-                self.lattice_constants["b"] *
-                self.lattice_constants["c"]
-            )
+        a = self.lattice_constants["a"]
+        b = self.lattice_constants["b"]
+        c = self.lattice_constants["c"]
+        A = self.lattice_angles["alpha"] * pi / 180.
+        B = self.lattice_angles["beta"] * pi / 180.
+        C = self.lattice_angles["gamma"] * pi / 180.
+        return a * b * c * sqrt( 1 + 2 * cos(A) * cos(B) * cos(C) - cos(A) ** 2 - cos(B) ** 2 - cos(C) ** 2)
+
 
     def number_density(self):
         return len(self.atom_sites) / self.volume()

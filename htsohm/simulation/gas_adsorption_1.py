@@ -173,7 +173,7 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
             print('OUTPUT FILE:\t%s' % output_file)
             results = parse_output(output_file)
             shutil.rmtree(output_dir, ignore_errors=True)
-            sys.stdout.flush()
+#            sys.stdout.flush()
         except FileNotFoundError as err:
             print(err)
             print(err.args)

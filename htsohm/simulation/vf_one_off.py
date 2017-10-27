@@ -6,11 +6,10 @@ from datetime import datetime
 from uuid import uuid4
 
 import htsohm
-from htsohm import config
 from htsohm.material_files import write_cif_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 
-def write_raspa_file(filename, uuid):
+def write_raspa_file(filename, uuid, config):
     """Writes RASPA input file for calculating helium void fraction.
 
     Args:
@@ -34,7 +33,8 @@ def write_raspa_file(filename, uuid):
             "\n" +
             "Framework              0\n" +
             "FrameworkName          %s\n" % (uuid) +
-            "UnitCells              1 1 1\n" +
+#            "UnitCells              1 1 1\n" +
+            "UnitCells              2 2 2\n" +
             "ExternalTemperature    298.0\n" +    # External temperature, K
             "\n" +
             "Component 0 MoleculeName               helium\n" +
@@ -61,7 +61,7 @@ def parse_output(output_file):
         print("\nVOID FRACTION :   %s\n" % (results['vf_helium_void_fraction']))
     return results
 
-def run(run_id, pseudo_material):
+def run(run_id, pseudo_material, config):
     """Runs void fraction simulation.
 
     Args:
@@ -84,7 +84,7 @@ def run(run_id, pseudo_material):
     print("Output directory :\t%s" % output_dir)
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, "VoidFraction.input")
-    write_raspa_file(filename, pseudo_material.uuid)
+    write_raspa_file(filename, pseudo_material.uuid, config)
     write_cif_file(pseudo_material, output_dir)
     write_mixing_rules(pseudo_material, output_dir)
     write_pseudo_atoms(pseudo_material, output_dir)
@@ -95,10 +95,11 @@ def run(run_id, pseudo_material):
             print("Time :\t%s" % datetime.now().time().isoformat())
             print("Calculating void fraction of %s..." % (pseudo_material.uuid))
             subprocess.run(['simulate', './VoidFraction.input'], check=True, cwd=output_dir)
-            filename = "output_%s_1.1.1_298.000000_0.data" % (pseudo_material.uuid)
+#            filename = "output_%s_1.1.1_298.000000_0.data" % (pseudo_material.uuid)
+            filename = "output_%s_2.2.2_298.000000_0.data" % (pseudo_material.uuid)
             output_file = os.path.join(output_dir, 'Output', 'System_0', filename)
             results = parse_output(output_file)
-            shutil.rmtree(output_dir, ignore_errors=True)
+#            shutil.rmtree(output_dir, ignore_errors=True)
 #            sys.stdout.flush()
         except (FileNotFoundError, IndexError, KeyError) as err:
             print(err)

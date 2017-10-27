@@ -281,3 +281,67 @@ class Material(Base):
         )
 
         return not retest_failed
+
+    def calculate_retest_result2(self, tolerance, config):
+        """Determine if material has passed re-testing routine.
+
+        Args:
+            self (class): row in material table.
+            tolerance (float): acceptable deviation as percent of parameter
+                bin-width.
+
+        Returns:
+            (bool) True if material has NOT failed any of all re-tests.
+
+        """
+        simulations = config['material_properties']
+        number_of_bins = config['number_of_convergence_bins']
+
+        if 'gas_adsorption_0' in simulations:
+            ga0_o = self.ga0_absolute_volumetric_loading    # initally-calculated values
+            ga0_mean = self.retest_gas_adsorption_0_sum / self.retest_num
+            ga0_limits = config['gas_adsorption_0']['limits']
+            ga0_width = (ga0_limits[1] - ga0_limits[0]) / number_of_bins
+        else:
+            ga0_o = 0
+            ga0_mean = 0
+            ga0_width = 0
+
+        if 'gas_adsorption_1' in simulations:
+            ga1_o = self.ga1_absolute_volumetric_loading    # initally-calculated values
+            ga1_mean = self.retest_gas_adsorption_1_sum / self.retest_num
+            ga1_limits = config['gas_adsorption_1']['limits']
+            ga1_width = (ga1_limits[1] - ga1_limits[0]) / number_of_bins
+        else:
+            ga1_o = 0
+            ga1_mean = 0
+            ga1_width = 0
+
+        if 'surface_area' in simulations:
+            sa_o = self.sa_volumetric_surface_area
+            sa_mean = self.retest_surface_area_sum / self.retest_num
+            sa_limits = config['surface_area']['limits']
+            sa_width = (sa_limits[1] - sa_limits[0]) / number_of_bins
+        else:
+            sa_o = 0
+            sa_mean = 0
+            sa_width = 0
+
+        if 'helium_void_fraction' in simulations:
+            vf_o = self.vf_helium_void_fraction
+            vf_mean = self.retest_void_fraction_sum / self.retest_num
+            vf_limits = config['surface_area']['limits']
+            vf_width = (vf_limits[1] - vf_limits[0]) / number_of_bins
+        else:
+            vf_o = 0
+            vf_mean = 0
+            vf_width = 0
+
+        retest_failed = (
+            abs(ga0_mean - ga0_o) >= tolerance * ga0_width and ga0_o != 0 or
+            abs(ga1_mean - ga1_o) >= tolerance * ga1_width and ga1_o != 0 or
+            abs(sa_mean - sa_o) >= tolerance * sa_width and sa_o != 0 or
+            abs(vf_mean - vf_o) >= tolerance * vf_width and vf_o != 0
+        )
+
+        return not retest_failed

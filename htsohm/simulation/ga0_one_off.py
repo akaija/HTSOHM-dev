@@ -6,11 +6,10 @@ from datetime import datetime
 from uuid import uuid4
 
 import htsohm
-from htsohm import config
 from htsohm.material_files import write_cif_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 
-def write_raspa_file(filename, uuid, helium_void_fraction=None):
+def write_raspa_file(filename, uuid, helium_void_fraction, config):
     """Writes RASPA input file for simulating gas adsorption.
 
     Args:
@@ -36,11 +35,13 @@ def write_raspa_file(filename, uuid, helium_void_fraction=None):
             "RestartFile                    no\n" +
             "\n" +
             "Forcefield     GenericMOFs\n" +
+#            "Forcefield     %s\n" % (uuid) +
             "CutOff         12.8\n" +                                            # electrostatic cut-off, Angstroms
             "\n" +
             "Framework              0\n" +
             "FrameworkName          %s\n" % (uuid) +
-            "UnitCells              1 1 1\n"
+#            "UnitCells              1 1 1\n"
+            "UnitCells              2 2 2\n"
         )
         if 'helium_void_fraction' != None:
             raspa_input_file.write("HeliumVoidFraction     %s\n" % (helium_void_fraction))
@@ -56,7 +57,7 @@ def write_raspa_file(filename, uuid, helium_void_fraction=None):
             "            CreateNumberOfMolecules    0\n"
         )
 
-def parse_output(output_file):
+def parse_output(output_file, config):
     """Parse output file for gas adsorption data.
 
     Args:
@@ -124,7 +125,7 @@ def parse_output(output_file):
 
     return results
 
-def run(run_id, pseudo_material, helium_void_fraction=None):
+def run(run_id, pseudo_material, helium_void_fraction, config):
     """Runs gas loading simulation.
 
     Args:
@@ -149,7 +150,7 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
     print('Output directory :\t%s' % output_dir)
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, '%s_loading.input' % adsorbate)
-    write_raspa_file(filename, pseudo_material.uuid, helium_void_fraction)
+    write_raspa_file(filename, pseudo_material.uuid, helium_void_fraction, config)
     write_cif_file(pseudo_material, output_dir)
     write_mixing_rules(pseudo_material, output_dir)
     write_pseudo_atoms(pseudo_material, output_dir)
@@ -171,8 +172,8 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
                 if file_name_part in file:
                     output_file = os.path.join(output_subdir, file)
             print('OUTPUT FILE:\t%s' % output_file)
-            results = parse_output(output_file)
-            shutil.rmtree(output_dir, ignore_errors=True)
+            results = parse_output(output_file, config)
+#            shutil.rmtree(output_dir, ignore_errors=True)
 #            sys.stdout.flush()
         except FileNotFoundError as err:
             print(err)

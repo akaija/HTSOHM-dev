@@ -6,11 +6,10 @@ from datetime import datetime
 from uuid import uuid4
 
 import htsohm
-from htsohm import config
 from htsohm.material_files import write_cif_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 
-def write_raspa_file(filename, uuid, helium_void_fraction=None):
+def write_raspa_file(filename, uuid, helium_void_fraction, config):
     """Writes RASPA input file for simulating gas adsorption.
 
     Args:
@@ -21,12 +20,12 @@ def write_raspa_file(filename, uuid, helium_void_fraction=None):
     Writes RASPA input-file.
 
     """
-    simulation_cycles      = config['gas_adsorption_0']['simulation_cycles']
-    initialization_cycles  = config['gas_adsorption_0']['initialization_cycles']
-    external_temperature   = config['gas_adsorption_0']['external_temperature']
-    external_pressure      = config['gas_adsorption_0']['external_pressure']
-    adsorbate              = config['gas_adsorption_0']['adsorbate']
-       
+    simulation_cycles      = config['gas_adsorption_1']['simulation_cycles']
+    initialization_cycles  = config['gas_adsorption_1']['initialization_cycles']
+    external_temperature   = config['gas_adsorption_1']['external_temperature']
+    external_pressure      = config['gas_adsorption_1']['external_pressure']
+    adsorbate              = config['gas_adsorption_1']['adsorbate']
+      
     with open(filename, "w") as raspa_input_file:
         raspa_input_file.write(
             "SimulationType                 MonteCarlo\n" +
@@ -40,7 +39,8 @@ def write_raspa_file(filename, uuid, helium_void_fraction=None):
             "\n" +
             "Framework              0\n" +
             "FrameworkName          %s\n" % (uuid) +
-            "UnitCells              1 1 1\n"
+#            "UnitCells              1 1 1\n"
+            "UnitCells              2 2 2\n"
         )
         if 'helium_void_fraction' != None:
             raspa_input_file.write("HeliumVoidFraction     %s\n" % (helium_void_fraction))
@@ -56,7 +56,7 @@ def write_raspa_file(filename, uuid, helium_void_fraction=None):
             "            CreateNumberOfMolecules    0\n"
         )
 
-def parse_output(output_file):
+def parse_output(output_file, config):
     """Parse output file for gas adsorption data.
 
     Args:
@@ -74,17 +74,17 @@ def parse_output(output_file):
         line_counter = 1
         for line in origin:
             if "absolute [mol/kg" in line:
-                results['ga0_absolute_molar_loading'] = float(line.split()[5])
+                results['ga1_absolute_molar_loading'] = float(line.split()[5])
             elif "absolute [cm^3 (STP)/g" in line:
-                results['ga0_absolute_gravimetric_loading'] = float(line.split()[6])
+                results['ga1_absolute_gravimetric_loading'] = float(line.split()[6])
             elif "absolute [cm^3 (STP)/c" in line:
-                results['ga0_absolute_volumetric_loading'] = float(line.split()[6])
+                results['ga1_absolute_volumetric_loading'] = float(line.split()[6])
             elif "excess [mol/kg" in line:
-                results['ga0_excess_molar_loading'] = float(line.split()[5])
+                results['ga1_excess_molar_loading'] = float(line.split()[5])
             elif "excess [cm^3 (STP)/g" in line:
-                results['ga0_excess_gravimetric_loading'] = float(line.split()[6])
+                results['ga1_excess_gravimetric_loading'] = float(line.split()[6])
             elif "excess [cm^3 (STP)/c" in line:
-                results['ga0_excess_volumetric_loading'] = float(line.split()[6])
+                results['ga1_excess_volumetric_loading'] = float(line.split()[6])
             elif "Average Host-Host energy:" in line:
                 host_host_line = line_counter + 8
             elif "Average Adsorbate-Adsorbate energy:" in line:
@@ -97,34 +97,34 @@ def parse_output(output_file):
         line_counter = 1
         for line in origin:
             if line_counter == host_host_line:
-                results['ga0_host_host_avg'] = float(line.split()[1])
-                results['ga0_host_host_vdw'] = float(line.split()[5])
-                results['ga0_host_host_cou'] = float(line.split()[7])
+                results['ga1_host_host_avg'] = float(line.split()[1])
+                results['ga1_host_host_vdw'] = float(line.split()[5])
+                results['ga1_host_host_cou'] = float(line.split()[7])
             elif line_counter == adsorbate_adsorbate_line:
-                results['ga0_adsorbate_adsorbate_avg'] = float(line.split()[1])
-                results['ga0_adsorbate_adsorbate_vdw'] = float(line.split()[5])
-                results['ga0_adsorbate_adsorbate_cou'] = float(line.split()[7])
+                results['ga1_adsorbate_adsorbate_avg'] = float(line.split()[1])
+                results['ga1_adsorbate_adsorbate_vdw'] = float(line.split()[5])
+                results['ga1_adsorbate_adsorbate_cou'] = float(line.split()[7])
             elif line_counter == host_adsorbate_line:
-                results['ga0_host_adsorbate_avg'] = float(line.split()[1])
-                results['ga0_host_adsorbate_vdw'] = float(line.split()[5])
-                results['ga0_host_adsorbate_cou'] = float(line.split()[7])
+                results['ga1_host_adsorbate_avg'] = float(line.split()[1])
+                results['ga1_host_adsorbate_vdw'] = float(line.split()[5])
+                results['ga1_host_adsorbate_cou'] = float(line.split()[7])
             line_counter += 1
 
-    adsorbate = config['gas_adsorption_0']['adsorbate']
+    adsorbate = config['gas_adsorption_1']['adsorbate']
     print(
         "\n%s ADSORPTION\tabsolute\texcess\n" % adsorbate +
-        "mol/kg\t\t\t%s\t%s\n" % (results['ga0_absolute_molar_loading'], results['ga0_excess_molar_loading']) +
-        "cc/g\t\t\t%s\t%s\n"   % (results['ga0_absolute_gravimetric_loading'], results['ga0_excess_gravimetric_loading']) +
-        "cc/cc\t\t\t%s\t%s\n"  % (results['ga0_absolute_volumetric_loading'], results['ga0_excess_volumetric_loading']) +
+        "mol/kg\t\t\t%s\t%s\n" % (results['ga1_absolute_molar_loading'], results['ga1_excess_molar_loading']) +
+        "cc/g\t\t\t%s\t%s\n"   % (results['ga1_absolute_gravimetric_loading'], results['ga1_excess_gravimetric_loading']) +
+        "cc/cc\t\t\t%s\t%s\n"  % (results['ga1_absolute_volumetric_loading'], results['ga1_excess_volumetric_loading']) +
         "\nENERGIES\thost-host\tadsorbate-adsorbate\thost-adsorbate\n" +
-        "avg\t\t%s\t\t%s\t\t%s\n" % (results['ga0_host_host_avg'], results['ga0_adsorbate_adsorbate_avg'], results['ga0_host_adsorbate_avg']) +
-        "vdw\t\t%s\t\t%s\t\t%s\n" % (results['ga0_host_host_vdw'], results['ga0_adsorbate_adsorbate_vdw'], results['ga0_host_adsorbate_vdw']) +
-        "cou\t\t%s\t\t%s\t\t\t%s\n" % (results['ga0_host_host_cou'], results['ga0_adsorbate_adsorbate_cou'], results['ga0_host_adsorbate_cou'])
+        "avg\t\t%s\t\t%s\t\t%s\n" % (results['ga1_host_host_avg'], results['ga1_adsorbate_adsorbate_avg'], results['ga1_host_adsorbate_avg']) +
+        "vdw\t\t%s\t\t%s\t\t%s\n" % (results['ga1_host_host_vdw'], results['ga1_adsorbate_adsorbate_vdw'], results['ga1_host_adsorbate_vdw']) +
+        "cou\t\t%s\t\t%s\t\t\t%s\n" % (results['ga1_host_host_cou'], results['ga1_adsorbate_adsorbate_cou'], results['ga1_host_adsorbate_cou'])
     )
 
     return results
 
-def run(run_id, pseudo_material, helium_void_fraction=None):
+def run(run_id, pseudo_material, helium_void_fraction, config):
     """Runs gas loading simulation.
 
     Args:
@@ -136,7 +136,7 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
         results (dict): gas loading simulation results.
 
     """
-    adsorbate             = config['gas_adsorption_0']['adsorbate']
+    adsorbate             = config['gas_adsorption_1']['adsorbate']
     simulation_directory  = config['simulations_directory']
     if simulation_directory == 'HTSOHM':
         htsohm_dir = os.path.dirname(os.path.dirname(htsohm.__file__))
@@ -149,7 +149,7 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
     print('Output directory :\t%s' % output_dir)
     os.makedirs(output_dir, exist_ok=True)
     filename = os.path.join(output_dir, '%s_loading.input' % adsorbate)
-    write_raspa_file(filename, pseudo_material.uuid, helium_void_fraction)
+    write_raspa_file(filename, pseudo_material.uuid, helium_void_fraction, config)
     write_cif_file(pseudo_material, output_dir)
     write_mixing_rules(pseudo_material, output_dir)
     write_pseudo_atoms(pseudo_material, output_dir)
@@ -171,8 +171,8 @@ def run(run_id, pseudo_material, helium_void_fraction=None):
                 if file_name_part in file:
                     output_file = os.path.join(output_subdir, file)
             print('OUTPUT FILE:\t%s' % output_file)
-            results = parse_output(output_file)
-            shutil.rmtree(output_dir, ignore_errors=True)
+            results = parse_output(output_file, config)
+#            shutil.rmtree(output_dir, ignore_errors=True)
 #            sys.stdout.flush()
         except FileNotFoundError as err:
             print(err)

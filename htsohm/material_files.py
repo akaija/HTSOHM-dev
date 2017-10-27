@@ -95,6 +95,10 @@ def generate_pseudo_material(run_id, number_of_atomtypes):
     for i in ['a', 'b', 'c']:
         pseudo_material.lattice_constants[i] = uniform(*lattice_limits)
 
+    pseudo_material.lattice_angles = {}
+    for i in ['alpha', 'beta', 'gamma']:
+        pseudo_material.lattice_angles[i] = 90.
+
     pseudo_material.number_of_atoms   = random_number_density(
         number_density_limits, pseudo_material.lattice_constants)
 
@@ -207,6 +211,8 @@ def mutate_pseudo_material(parent_material, parent_pseudo_material, mutation_str
         child_pseudo_material.lattice_constants[i] += mutation_strength * (
                 random_x - old_x)
 
+    child_pseudo_material.lattice_angles = parent_pseudo_material.lattice_angles.copy()
+
     ########################################################################
     #perturb number density, calculate number of atoms
     child_ND = parent_pseudo_material.number_density()
@@ -239,6 +245,108 @@ def mutate_pseudo_material(parent_material, parent_pseudo_material, mutation_str
                 child_pseudo_material.atom_types)['chemical-id']}
             for i in ['x-frac', 'y-frac', 'z-frac']:
                 new_atom_site[i] = random()
+            child_pseudo_material.atom_sites.append(new_atom_site)
+
+    return child_material, child_pseudo_material
+
+def mutate_pseudo_material2(parent_material, parent_pseudo_material, mutation_strength, generation, config):
+    """Modifies a "parent" material's definition files by perturbing each
+    parameter by some factor, dictated by the `mutation_strength`.
+    
+    Args:
+        run_id (str): identification string for run.
+        parent_id (str): uuid, identifying parent material in database.
+        generation (int): iteration count for overall bin-mutate-simulate routine.
+        mutation_strength (float): perturbation factor [0, 1].
+
+    Returns:
+        new_material (sqlalchemy.orm.query.Query): database row for storing 
+            simulation data specific to the material. See
+            `htsohm/db/material.py` for more information.
+
+    Todo:
+        * Add methods for assigning and mutating charges.
+
+    """
+    
+    ########################################################################
+    # load boundaries from config-file
+    lattice_limits          = config["lattice_constant_limits"]
+    number_density_limits   = config["number_density_limits"]
+
+    ########################################################################
+    # create material object
+    child_material = Material(parent_material.run_id)
+    child_material.parent_id = parent_material.id
+    child_material.generation = generation
+    child_pseudo_material = PseudoMaterial(child_material.uuid)
+
+    child_pseudo_material.run_id = parent_pseudo_material.run_id
+
+    ########################################################################
+    # perturb LJ-parameters
+    child_pseudo_material.atom_types = parent_pseudo_material.atom_types.copy()
+    for atom_type in child_pseudo_material.atom_types:    
+        for x in ['epsilon', 'sigma']:
+            old_x = atom_type[x]
+            random_x = uniform(*config["{0}_limits".format(x)])
+            atom_type[x] += mutation_strength * (random_x - old_x)
+
+    ########################################################################
+    # calculate new lattice constants
+    child_pseudo_material.lattice_constants = parent_pseudo_material.\
+            lattice_constants.copy()
+    for i in ['a', 'b', 'c']:
+        old_x = parent_pseudo_material.lattice_constants[i]
+        random_x = uniform(*lattice_limits)
+        child_pseudo_material.lattice_constants[i] += mutation_strength * (
+                random_x - old_x)
+
+    child_pseudo_material.lattice_angles = parent_pseudo_material.lattice_angles.copy()
+
+    ########################################################################
+    #perturb number density, calculate number of atoms
+    child_ND = parent_pseudo_material.number_density()
+    random_ND = uniform(*number_density_limits)
+    child_ND += mutation_strength * (random_ND - child_ND)
+
+    print('\nNUMBER DENSITY : {}\n'.format(child_ND))
+
+    child_number_of_atoms = (
+            int(child_ND * child_pseudo_material.volume()))
+
+    ########################################################################
+    # remove excess atom-sites, if any
+    child_pseudo_material.atom_sites = np.random.choice(
+            parent_pseudo_material.atom_sites,
+            min(child_number_of_atoms,
+                len(parent_pseudo_material.atom_sites)),
+            replace=False).tolist()
+    
+##    xfrac = [e['x-frac'] for e in parent_pseudo_material.atom_sites]
+##    yfrac = [e['y-frac'] for e in parent_pseudo_material.atom_sites]
+##    zfrac = [e['z-frac'] for e in parent_pseudo_material.atom_sites]
+##    max_frac = 1.5 * max(max(xfrac), max(yfrac), max(zfrac))
+##    min_frac = 0.5 * min(min(xfrac), min(yfrac), min(zfrac))
+
+    ########################################################################
+    # perturb atom-site positions
+    for atom_site in child_pseudo_material.atom_sites:
+        for i in ['x-frac', 'y-frac', 'z-frac']:
+            random_frac = uniform(-1, 1)
+            atom_site[i] += mutation_strength * (random_frac - atom_site[i])
+#            atom_site[i] = random_position(
+#                    atom_site[i], random(), mutation_strength)
+
+    ########################################################################
+    # add atom-sites, if needed
+    if child_number_of_atoms > len(child_pseudo_material.atom_sites):
+        for new_sites in range(child_number_of_atoms -
+                len(child_pseudo_material.atom_sites)):
+            new_atom_site = {'chemical-id' : choice(
+                child_pseudo_material.atom_types)['chemical-id']}
+            for i in ['x-frac', 'y-frac', 'z-frac']:
+                new_atom_site[i] = uniform(-1, 1)
             child_pseudo_material.atom_sites.append(new_atom_site)
 
     return child_material, child_pseudo_material
@@ -276,10 +384,13 @@ def write_cif_file(material, simulation_path):
             "_cell_length_{}    {}\n".format(i, 
                 round(material.lattice_constants[i], 4))
         )
+        print(material.lattice_angles)
+        for i in ['alpha', 'beta', 'gamma']:
+            cif_file.write(
+            "_cell_angle_{}     {}\n".format(i,
+                round(material.lattice_angles[i], 4))
+        )
         cif_file.write(
-            "_cell_angle_alpha  90.0000\n" +
-            "_cell_angle_beta   90.0000\n" +
-            "_cell_angle_gamma  90.0000\n" +
             "loop_\n" +
             "_atom_site_label\n" +
             "_atom_site_type_symbol\n" +

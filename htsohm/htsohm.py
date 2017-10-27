@@ -2,6 +2,7 @@ import os
 import sys
 from math import sqrt
 from datetime import datetime
+from collections import Counter
 
 import numpy as np
 from sqlalchemy.sql import func, or_
@@ -200,6 +201,111 @@ def run_all_simulations(material, pseudo_material):
     else:
         material.surface_area_bin = 0
 
+def run_all_one_off(material, pseudo_material, config):
+    """Simulate helium void fraction, gas loading, and surface area.
+
+    Args:
+        material (sqlalchemy.orm.query.Query): material to be analyzed.
+
+    Depending on properties specified in config, adds simulated data for helium
+    void fraction, gas loading, heat of adsorption, surface area, and
+    corresponding bins to row in database corresponding to the input-material.
+        
+    """
+    simulations = config['material_properties']
+
+    ############################################################################
+    # run helium void fraction simulation
+    if 'helium_void_fraction' in simulations:
+        results = simulation.vf_one_off.run(
+            material.run_id, pseudo_material, config)
+        material.update_from_dict(results)
+        material.void_fraction_bin = calc_bin(
+            material.vf_helium_void_fraction,
+            *config['helium_void_fraction']['limits'],
+            config['number_of_convergence_bins']
+        )
+    else:
+        material.void_fraction_bin = 0
+    ############################################################################
+    # run gas loading simulation
+    if 'gas_adsorption_0' in simulations and 'gas_adsorption_1' not in simulations:
+        arguments = [material.run_id, pseudo_material]
+        if 'helium_void_fraction' in simulations:
+            arguments.append(material.vf_helium_void_fraction)
+        results = simulation.ga0_one_off.run(*arguments, config)
+        material.update_from_dict(results)
+        material.gas_adsorption_bin = calc_bin(
+            material.ga0_absolute_volumetric_loading,
+            *config['gas_adsorption_0']['limits'],
+            config['number_of_convergence_bins']
+        )
+    elif 'gas_adsorption_0' in simulations and 'gas_adsorption_1' in simulations:
+        arguments = [material.run_id, pseudo_material]
+        if 'helium_void_fraction' in simulations:
+            arguments.append(material.vf_helium_void_fraction)
+        results = simulation.ga0_one_off.run(*arguments, config)
+        material.update_from_dict(results)
+        results = simulation.ga1_one_off.run(*arguments, config)
+        material.update_from_dict(results)
+        material.gas_adsorption_bin = calc_bin(
+            abs(material.ga0_absolute_volumetric_loading - material.ga1_absolute_volumetric_loading),
+            *config['gas_adsorption_0']['limits'],
+            config['number_of_convergence_bins']
+        )
+    elif 'gas_adsorption_0' not in simulations:
+        material.gas_adsorption_bin = 0
+    ############################################################################
+    # run surface area simulation
+    if 'surface_area' in simulations:
+        results = simulation.sa_one_off.run(
+                material.run_id, pseudo_material, config)
+        material.update_from_dict(results)
+        material.surface_area_bin = calc_bin(
+            material.sa_volumetric_surface_area,
+            *config['surface_area']['limits'],
+            config['number_of_convergence_bins']
+        )
+    else:
+        material.surface_area_bin = 0
+
+def average_sigma_epsilon(atom_sites, atom_types):
+    atom_ids = []
+    for atom_site in atom_sites:
+        atom_ids.append(atom_site['chemical-id'])
+    counts = Counter(atom_ids)
+    
+    sigma_products, epsilon_products = [], []
+    for i in counts:
+        count = counts[i]
+        for atom_type in atom_types:
+            if atom_type['chemical-id'] == i:
+                sigma = atom_type['sigma']
+                epsilon = atom_type['epsilon']
+        sigma_product = count * sigma
+        epsilon_product = count * epsilon
+        sigma_products.append(sigma_product)
+        epsilon_products.append(epsilon_product)
+        
+    return sum(sigma_products) / float(len(atom_sites)), sum(epsilon_products) / float(len(atom_sites))
+
+def calculate_properties(uuid):
+    run_id = session.query(Material.run_id).filter(Material.uuid==uuid).one()[0]
+    htsohm_dir = os.path.dirname(os.path.dirname(htsohm.__file__))
+    pm_dir = os.path.join(htsohm_dir, run_id, 'pseudo_materials')
+    yaml_path = os.path.join(pm_dir, '{}.yaml'.format(uuid))
+    with open(yaml_path) as structure_file:
+        struct = yaml.load(structure_file)
+    avg_sig, avg_ep = average_sigma_epsilon(struct.atom_sites, struct.atom_types)
+    lc = struct.lattice_constants
+    vol = lc['a'] * lc['b'] * lc['c']
+    nden = len(struct.atom_sites) / vol
+
+    print('Avg. sigma-value :\t{}'.format(avg_sig))
+    print('Avg. epsilon-value :\t{}'.format(avg_ep))
+    print('Unit cell volume :\t{}'.format(vol))
+    print('Number density :\t{}'.format(nden))
+
 def retest(m_orig, retests, tolerance, pseudo_material):
     """Reproduce simulations  to prevent statistical errors.
 
@@ -238,6 +344,49 @@ def retest(m_orig, retests, tolerance, pseudo_material):
     if m_orig.retest_num >= retests:
         try:
             m_orig.retest_passed = m.calculate_retest_result(tolerance)
+            print('\nRETEST_PASSED :\t%s' % m_orig.retest_passed)
+            session.commit()
+        except ZeroDivisionError as e:
+            print('WARNING: ZeroDivisionError - material.calculate_retest_result(tolerance)')
+
+def retest2(m_orig, retests, tolerance, pseudo_material, config):
+    """Reproduce simulations  to prevent statistical errors.
+
+    Args:
+        m_orig (sqlalchemy.orm.query.Query): material to retest.
+        retests (int): number of times to reproduce each simulation.
+        tolerance (float): acceptance criteria as percent deviation from
+            originally calculated value.
+
+    Queries database to determine if there are remained retests to  be run.
+    Updates row in database with total number of retests and results.
+
+    """
+    m = m_orig.clone()
+    run_all_one_off(m, pseudo_material, config)
+    print('\n\nRETEST_NUM :\t%s' % m_orig.retest_num)
+    print('retests :\t%s' % retests)
+
+    simulations = config['material_properties']
+
+    # requery row from database, in case someone else has changed it, and lock it
+    # if the row is presently locked, this method blocks until the row lock is released
+    session.refresh(m_orig, lockmode='update')
+    if m_orig.retest_num < retests:
+        if 'gas_adsorption_0' in simulations:
+            m_orig.retest_gas_adsorption_0_sum += m.ga0_absolute_volumetric_loading
+        if 'gas_adsorption_1' in simulations:
+            m_orig.retest_gas_adsorption_1_sum += m.ga1_absolute_volumetric_loading
+        if 'surface_area' in simulations:
+            m_orig.retest_surface_area_sum += m.sa_volumetric_surface_area
+        if 'helium_void_fraction' in simulations:
+            m_orig.retest_void_fraction_sum += m.vf_helium_void_fraction
+        m_orig.retest_num += 1
+        session.commit()        
+
+    if m_orig.retest_num >= retests:
+        try:
+            m_orig.retest_passed = m.calculate_retest_result2(tolerance, config)
             print('\nRETEST_PASSED :\t%s' % m_orig.retest_passed)
             session.commit()
         except ZeroDivisionError as e:
