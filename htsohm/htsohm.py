@@ -152,7 +152,7 @@ def calculate_mutation_strength(run_id, generation, mutation_strength_bin):
         mutation_strength.generation = generation
 
         try:
-            fraction_in_parent_bin = calculate_percent_children_in_bin(run_id, generation, mutation_strength_bin)
+            fraction_in_parent_bin = calculate_percent_children_in_bin(run_id, generation - 1, mutation_strength_bin)
 
             if config['interactive_mode'] != 'on':
                 if fraction_in_parent_bin < 0.1 and mutation_strength.strength / 1.1 > 0:
