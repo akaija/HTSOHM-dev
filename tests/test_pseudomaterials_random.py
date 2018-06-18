@@ -1,7 +1,7 @@
 from random import choice, random, randrange, uniform
 import pytest
 
-from htsohm.material_files import random_number_density
+from htsohm.pseudomaterial_generator.random import random_number_density
 from htsohm.db import Structure
 
 @pytest.fixture

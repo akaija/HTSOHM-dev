@@ -3,8 +3,7 @@ import sys
 from math import sqrt
 from datetime import datetime
 
-import numpy as np
-from sqlalchemy.sql import func, or_
+from sqlalchemy.sql import func
 from sqlalchemy.orm.exc import FlushError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import text
@@ -12,9 +11,9 @@ import yaml
 
 import htsohm
 from htsohm import config
-from htsohm.db import engine, session, Material, MutationStrength, Structure
-from htsohm.material_files import generate_material, mutate_material
-from htsohm import simulation
+from htsohm.db import engine, session, Material, MutationStrength
+from htsohm import pseudomaterial_generator
+from htsohm.simulation.run_all import run_all_simulations
 
 def materials_in_generation(run_id, generation):
     """Count number of materials in a generation.
@@ -46,285 +45,6 @@ def last_generation(run_id):
     return session.query(func.max(Material.generation)).filter(
         Material.run_id == run_id,
     )[0][0]
-
-def select_parent(run_id, max_generation, generation_limit):
-    """Use bin-counts to preferentially select a list of 'rare' parents.
-
-    Args:
-        run_id (str): identification string for run.
-        max_generation (int): latest generation to include when counting number
-            of materials ub each bin.
-        generation_limit (int): number of materials to query in each generation
-            (as materials are added to database they are assigned an index
-            within the generation to bound the number of materials in each
-            generation).
-
-    Returns:
-        The material id(int) corresponding to some parent-material selected
-        from database with a bias favoring materials in bins with the lowest
-        counts.
-
-    """
-    # Determine which dimensions are being binned
-    simulations = config['simulations']
-    queries = []
-    if 'gas_adsorption' in simulations or 'artificial_gas_adsorption' in simulations:
-        queries.append( getattr(Material, 'gas_adsorption_bin') )
-    if 'surface_area' in simulations or 'artificial_surface_area' in simulations:
-        queries.append( getattr(Material, 'surface_area_bin') )
-    if 'helium_void_fraction' in simulations or 'artificial_void_fraction' in simulations:
-        queries.append( getattr(Material, 'void_fraction_bin') )
-
-    # Count the number of materials in each bin
-    bins_and_counts = session \
-        .query(
-            func.count(Material.id),
-            *queries
-        ) \
-        .filter(
-            Material.run_id == run_id,
-            or_(Material.retest_passed == True, Material.retest_passed == None),
-            Material.generation <= max_generation,
-            Material.generation_index < generation_limit,
-        ) \
-        .group_by(*queries).all()[1:]
-
-    # Print bin-counts in interactive mode
-    if config['selection_mode'] == 'manual':
-        print('\n  BIN\t\t|  COUNT')
-        print('----------------+-----------')
-        for bin_and_count in bins_and_counts:
-            print('  {}\t|  {}'.format(bin_and_count[1:len(queries) + 2], bin_and_count[0]))
-        print('\n')
-    
-        input('Press Enter to calculate normalized weights...')
-
-    # Extract only bin coordinate from bins_and_counts query
-    bins = []
-    for i in bins_and_counts:
-        some_bin = {}
-        for j in range(len(queries)):
-            some_bin[queries[j]] = i[j + 1]
-        bins.append(some_bin)
-
-    # Assign weight to each bin
-    total = sum([i[0] for i in bins_and_counts])
-    weights = [ total / float(i[0]) for i in bins_and_counts ]
-    normalized_weights = [ weight / sum(weights) for weight in weights ]
-
-    # Print bins and weights in interactive mode
-    if config['selection_mode'] == 'manual':
-        print('\n  BIN\t\t|  COUNT\t|  WEIGHT\t|  NORMALIZED-WEIGHT')
-        print('----------------+---------------+---------------+---------------------')
-        for i in range(len(bins_and_counts)):
-            print('  {}\t|  {}\t\t|  {}\t\t|  {}'.format(
-                bins_and_counts[i][1:len(queries) + 1], bins_and_counts[i][0],
-                weights[i], normalized_weights[i]))
-        print('\n')
-    
-    # Have user select a parent-bin
-        ga_bin = input('Press select a gas adsorption bin :\t')
-        sa_bin = input('Press select a surface area bin :\t')
-        vf_bin = input('Press select a void fraction bin :\t')
-    
-    # Query parent-ids corresponding to selected bin
-        parent_query = session \
-            .query(Material.uuid) \
-            .filter(
-                Material.run_id == run_id,
-                or_(Material.retest_passed == True, Material.retest_passed == None),
-                Material.gas_adsorption_bin == ga_bin,
-                Material.surface_area_bin == sa_bin,
-                Material.void_fraction_bin == vf_bin,
-                Material.generation <= max_generation,
-                Material.generation_index < generation_limit,
-            ).all()
-        potential_parents = [i[0] for i in parent_query]
-    
-        print('Potential parents :')
-        for i in potential_parents:
-            print('\t{}'.format(i))
-    
-    # Have user select parent-pseudomaterial
-        parent_uuid = input('Please select a parent UUID :\t')
-        parent_id = session.query(Material.id).filter(Material.uuid==parent_uuid).one()
-
-    # Weighted-selection for parent bin (non-interactive mode)
-    else:
-        parent_bin = np.random.choice(bins, p = normalized_weights)
-        parent_queries = [i == parent_bin[i] for i in queries]
-        parent_query = session \
-            .query(Material.id) \
-            .filter(
-                Material.run_id == run_id,
-                or_(Material.retest_passed == True, Material.retest_passed == None),
-                *parent_queries,
-                Material.generation <= max_generation,
-                Material.generation_index < generation_limit,
-            ).all()
-        potential_parents = [i[0] for i in parent_query]
-    # Randomly-select parent-pseudomaterial (non-interactive mode)
-        parent_id = int(np.random.choice(potential_parents))
-
-    return parent_id
-
-def get_simulation(simulation_type):
-    if simulation_type == 'gas_adsorption':
-        return simulation.gas_adsorption
-    elif simulation_type == 'surface_area':
-        return simulation.surface_area
-    elif simulation_type == 'helium_void_fraction':
-        return simulation.helium_void_fraction
-    elif simulation_type == 'artificial_gas_adsorption':
-        return simulation.artificial_gas_adsorption
-    elif simulation_type == 'artificial_surface_area':
-        return simulation.artificial_surface_area
-    elif simulation_type == 'artificial_void_fraction':
-        return simulation.artificial_void_fraction
-    else:
-        raise Exception('Simulation-type not found!')
-
-def run_all_simulations(material):
-    """Simulate helium void fraction, gas loading, and surface area.
-
-    Args:
-        material (sqlalchemy.orm.query.Query): material to be analyzed.
-
-    Depending on properties specified in config, adds simulated data for helium
-    void fraction, gas loading, heat of adsorption, surface area, and
-    corresponding bins to row in database corresponding to the input-material.
-        
-    """
-    simulation_config = config['simulations']
-    for simulation_type in simulation_config:
-        results = get_simulation(simulation_type).run(material, simulation_config[simulation_type])
-        material.update_from_dict(results)
-
-def retest(m_orig, retests, tolerance):
-    """Reproduce simulations  to prevent statistical errors.
-
-    Args:
-        m_orig (sqlalchemy.orm.query.Query): material to retest.
-        retests (int): number of times to reproduce each simulation.
-        tolerance (float): acceptance criteria as percent deviation from
-            originally calculated value.
-
-    Queries database to determine if there are remained retests to  be run.
-    Updates row in database with total number of retests and results.
-
-    """
-    m = m_orig.clone()
-
-    run_all_simulations(m)
-    print('Retest {} / {}'.format(m_orig.retest_num + 1, retests))
-
-    simulations = config['simulations']
-
-    # requery row from database, in case someone else has changed it, and lock it
-    # if the row is presently locked, this method blocks until the row lock is released
-    session.refresh(m_orig, lockmode='update')
-
-    if config['interactive_mode'] == 'on':
-        x0 = m_orig.retest_gas_adsorption_0_sum
-        x1 = m_orig.retest_gas_adsorption_1_sum
-        y = m_orig.retest_surface_area_sum
-        z = m_orig.retest_void_fraction_sum
-            
-    if m_orig.retest_num < retests:
-        if 'gas_adsorption' in simulations or 'artificial_gas_adsorption' in simulations:
-            m_orig.retest_gas_adsorption_0_sum += m.ga0_absolute_volumetric_loading
-            if 'gas_adsorption' in simulations:
-                if isinstance(config['simulations']['gas_adsorption']['external_pressure'], list):
-                    m_orig.retest_gas_adsorption_1_sum += m.ga1_absolute_volumetric_loading
-        if 'surface_area' in simulations or 'artificial_surface_area' in simulations:
-            m_orig.retest_surface_area_sum += m.sa_volumetric_surface_area
-        if 'helium_void_fraction' in simulations or 'artificial_void_fraction' in simulations:
-            m_orig.retest_void_fraction_sum += m.vf_helium_void_fraction
-        m_orig.retest_num += 1
-        session.commit()        
-
-    if config['interactive_mode'] == 'on':
-        print('\n  PROPERTY\t\t|  OLD SUM\t|  NEW VALUE\t|  NEW SUM')
-        print('------------------------+---------------+---------------+-----------')
-        if 'gas_adsorption' in simulations:
-            print('  gas-0 adsorption\t|  {}\t|  {}\t|  {}'.format(
-                round(x0, 4),
-                round(m.ga0_absolute_volumetric_loading, 4),
-                round(m_orig.retest_gas_adsorption_0_sum, 4)))
-            if isinstance(config['simulations']['gas_adsorption']['external_pressure'], list):
-                print('  gas-1 adsorption\t|  {}\t|  {}\t|  {}'.format(
-                    round(x1, 4),
-                    round(m.ga1_absolute_volumetric_loading, 4),
-                    round(m_orig.retest_gas_adsorption_1_sum, 4)))
-        if 'surface_area' in simulations:
-            print('  surface area\t\t|  {}\t|  {}\t|  {}'.format(
-                round(y, 4),
-                round(m.sa_volumetric_surface_area, 4),
-                round(m_orig.retest_surface_area_sum, 4)))
-        if 'helium_void_fraction' in simulations:
-            print('  void fraction\t\t|  {}\t|  {}\t|  {}'.format(
-                round(z, 4),
-                round(m.vf_helium_void_fraction, 4),
-                round(m_orig.retest_void_fraction_sum, 4)))
-
-
-    if m_orig.retest_num >= retests:
-        if config['interactive_mode'] != 'on':
-            try:
-                m_orig.retest_passed = m.calculate_retest_result(tolerance)
-                print('\nRETEST_PASSED :\t%s' % m_orig.retest_passed)
-                session.commit()
-            except ZeroDivisionError as e:
-                print('WARNING: ZeroDivisionError - material.calculate_retest_result(tolerance)')
-        elif config['interactive_mode'] == 'on':
-            print('\tPlease check, using the values below, that the difference\n' +
-                    '\tbetween the original value and averaged retest values is\n' +
-                    '\tnot greater than the tolerance times bin-width.')
-            print('==============================================================================')
-            print('  TOLERANCE\t|  {}'.format(config['retests']['tolerance']))
-            print('==============================================================================')
-            print('  NUM. TESTS\t|  {}'.format(config['retests']['number']))
-            print('==============================================================================')
-            print('  PROPERTY\t\t| ORIGINAL VALUE\t|  RETEST SUM\t|  BIN-WIDTH')
-            print('------------------------+-----------------------+---------------+-------------')
-
-            s = config['simulations']
-            if 'gas_adsorption_0' in simulations:
-                print('  gas-0 adsorption\t|  {}\t\t|  {}\t|  {}'.format(
-                    round(m_orig.ga0_absolute_volumetric_loading, 4),
-                    round(m_orig.retest_gas_adsorption_0_sum, 4),
-                    (s['gas_adsorption']['limits'][1] - s['gas_adsorption']['limits'][0]) / config['number_of_convergence_bins']))
-                if isinstance(config['simulations']['gas_adsorption']['external_pressure'], list):
-                    print('  gas-1 adsorption\t|  {}\t\t|  {}\t|  {}'.format(
-                        round(m_orig.ga1_absolute_volumetric_loading, 4),
-                        round(m_orig.retest_gas_adsorption_1_sum, 4),
-                    (s['gas_adsorption']['limits'][1] - s['gas_adsorption']['limits'][0]) / config['number_of_convergence_bins']))
-            if 'surface_area' in simulations:
-                print('  surface area\t\t|  {}\t\t|  {}\t|  {}'.format(
-                    round(m_orig.sa_volumetric_surface_area, 4),
-                    round(m_orig.retest_surface_area_sum, 4),
-                    (s['surface_area']['limits'][1] - s['surface_area']['limits'][0]) / config['number_of_convergence_bins']))
-            if 'helium_void_fraction' in simulations:
-                print('  void fraction\t\t|  {}\t\t|  {}\t|  {}'.format(
-                    round(m_orig.vf_helium_void_fraction, 4),
-                    round(m_orig.retest_void_fraction_sum, 4),
-                    (s['helium_void_fraction']['limits'][1] - s['helium_void_fraction']['limits'][0]) / config['number_of_convergence_bins']))
-
-            m_orig.retest_passed = set_variable(
-                    'Does {} pass the retest? (True/False) :\t'.format(m_orig.uuid),
-                    'm_orig.retest_passed')
-            session.commit()
-
-def retest_loop(parent_material):
-    # run retests until we've run enough
-    print_block('Running retest...')
-    while parent_material.retest_passed is None:
-        print("running retest...")
-        print("Date :\t%s" % datetime.now().date().isoformat())
-        print("Time :\t%s" % datetime.now().time().isoformat())
-        retest(parent_material, config['retests']['number'],
-                config['retests']['tolerance'])
-        session.refresh(parent_material)
 
 def get_all_parent_ids(run_id, generation):
     return [e[0] for e in session.query(Material.parent_id) \
@@ -563,15 +283,7 @@ def calculate_all_mutation_strengths(config, gen):
                 session.add(mutation_strength)
     print('Done calculating mutation strengths!')
 
-def determine_mutation_strength(run_id, gen, parent_material): 
-    if config['mutation_strength_method'] == 'flat':
-        mutation_strength = config['initial_mutation_strength']
-    else:
-        mutation_strength_key = [run_id, gen] + parent_material.bin
-        mutation_strength = MutationStrength \
-                .get_prior(*mutation_strength_key).clone().strength
-    return mutation_strength
- 
+
 def worker_run_loop(run_id):
     """
     Args:
@@ -596,29 +308,11 @@ def worker_run_loop(run_id):
             # generate seed material - first iteration only
             if gen == 0:
                 print("writing new seed...")
-                material = generate_material(run_id, config['number_of_atom_types'])
+                material = pseudomaterial_generator.random.new_material(run_id, gen)
 
             # select parent, retest, and mutate to create new material
             else:
-                print_block('Selecting parent...')
-                
-                # select parent material
-                parent_id = select_parent(run_id, max_generation=(gen - 1),
-                        generation_limit=config['children_per_generation'])
-                parent_material = session.query(Material).get(parent_id)
-                
-                # run retests
-                retest_loop(parent_material)
-                if not parent_material.retest_passed:
-                    print("parent failed retest. restarting with parent selection.")
-                    continue
-
-                # determine mutation strength
-                mutation_strength = determine_mutation_strength(run_id, gen, parent_material)
-                
-                # mutate material
-                print_block('Mutating pseudomaterial..')
-                material = mutate_material(parent_material, mutation_strength, gen)
+                material = pseudomaterial_generator.mutate.new_material(run_id, gen)
 
             # simulate material properties
             run_all_simulations(material)
