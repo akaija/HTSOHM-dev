@@ -446,6 +446,8 @@ def new_material(run_id, gen):
 
     # determine mutation strength
     mutation_strength = determine_mutation_strength(run_id, gen, parent_material)
+    if config['pseudomaterial_generator'] == 'hybrid':
+        mutation_strength = np.random.choice([1, mutation_strength])
     
     # mutate material
     material = mutate_material(parent_material, mutation_strength, gen)

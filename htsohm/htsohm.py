@@ -306,7 +306,7 @@ def worker_run_loop(run_id):
         while materials_in_generation(run_id, gen) < size_of_generation:
 
             # generate seed material - first iteration only
-            if gen == 0:
+            if gen == 0 or config['pseudomaterial_generator'] == 'random':
                 print("writing new seed...")
                 material = pseudomaterial_generator.random.new_material(run_id, gen)
 

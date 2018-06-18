@@ -31,6 +31,7 @@ mutation_strength_method: 'adaptive'
 annealing_on: 'on'
 annealing_frequency: 10
 annealing_strength: 0.5
+pseudomaterial_generator: 'mutate'
 
 charge_limit: 0.0
 elemental_charge: 0.0001
