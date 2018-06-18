@@ -39,14 +39,16 @@ def write_cif_file(material, simulation_path):
             "_atom_site_fract_x\n" +
             "_atom_site_fract_y\n" +
             "_atom_site_fract_z\n"
+            "_atom_site_charge\n"
         )
         for atom_site in material.structure.atom_sites:
             cif_file.write(
-            "{0:5} C {1:4f} {2:4f} {3:4f}\n".format(
+                    "{0:5} C {1:4f} {2:4f} {3:4f} {4:8f}\n".format(
                 atom_site.chemical_id,
                 round(atom_site.x_frac, 4),
                 round(atom_site.y_frac, 4),
-                round(atom_site.z_frac, 4)
+                round(atom_site.z_frac, 4),
+                round(atom_site.charge, 8)
             ))
 
 def write_mixing_rules(material, simulation_path):

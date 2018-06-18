@@ -9,6 +9,7 @@ CutOff                          12.8
 
 Framework                       0
 FrameworkName                   $FrameworkName
+UseChargesFromCIFFile           yes
 UnitCells                       2 2 2
 HeliumVoidFraction              $HeliumVoidFraction
 ExternalTemperature             $ExternalTemperature

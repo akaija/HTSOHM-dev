@@ -1,3 +1,4 @@
+import math
 from random import choice, random, randrange, uniform
 
 import numpy as np
@@ -404,10 +405,62 @@ def mutate_material(parent_material, mutation_strength, generation):
     # add atom-sites, if needed
     if number_of_atoms > len(parent_material.structure.atom_sites):
         for new_sites in range(number_of_atoms - len(parent_material.structure.atom_sites)):
-            parent_material.structure.atom_sites.append(AtomSites(
+            child_material.structure.atom_sites.append(AtomSites(
                 chemical_id = 'A_{}'.format(choice(
                     range(len(parent_material.structure.lennard_jones)))),
                 x_frac = random(), y_frac = random(), z_frac = random()))
+
+    ##########################
+    # mutate charges
+    parent_charges = np.asarray([e.charge for e in parent_material.structure.atom_sites])
+
+    if number_of_atoms < len(parent_charges):
+        child_charges = parent_charges[:number_of_atoms]
+    else:
+        child_charges = np.zeros(number_of_atoms)
+        for i in range(len(parent_charges)):
+            child_charges[i] = parent_charges[i]
+
+    # adjust charges to account for new number of atom sites
+    total_charge = sum(child_charges)
+    remaining_charge = total_charge
+    while not math.isclose(0., total_charge, abs_tol=1e-9):
+        # chose a random atom site
+        i = np.random.choice(range(number_of_atoms))
+        negative = config['charge_limit'] + child_charges[i]
+        positive = config['charge_limit'] - child_charges[i]
+        if total_charge > 0:
+            delta_charge = uniform(0., min(negative, remaining_charge))
+            child_charges[i] -= delta_charge
+        else:
+            delta_charge = random.uniform(0., min(positive, remaining_charge))
+            child_charges[i] += delta_charge
+        total_charge = sum(child_charges)
+        remaining_charge -= delta_charge
+    
+    # randomize any new atom sites
+    if number_of_atoms > len(parent_charges):
+        for i in range(number_of_atoms - len(parent_charges), number_of_atoms):
+            q0 = config['charge_limit'] - abs(child_charges[i])
+            j = np.random.choice(range(number_of_atoms))
+            q1 = config['charge_limit'] - abs(child_charges[j])
+            delta_charge = uniform(0, min([q0, q1]))
+            child_charges[i] += delta_charge
+            child_charges[j] -= delta_charge
+
+    # perturb all charges
+    for i in range(number_of_atoms):
+        q0 = config['charge_limit'] - abs(child_charges[i])
+        j = np.random.choice(range(number_of_atoms))
+        q1 = config['charge_limit'] - abs(child_charges[j])
+        delta_charge = mutation_strength * uniform(0, min([q0, q1]))
+        child_charges[i] += delta_charge
+        child_charges[j] -= delta_charge
+
+    print('NET CHARGE : {}'.format(sum(child_charges)))
+
+    for i in range(number_of_atoms):
+        child_material.structure.atom_sites[i].charge = child_charges[i]
 
     if config['interactive_mode'] == 'on':
         print('===================================================================')
@@ -429,6 +482,8 @@ def mutate_material(parent_material, mutation_strength, generation):
         print('  {}\t| {}'.format(
             round(len(parent_material.structure.atom_sites) / parent_material.structure.volume, 6),
             round(len(child_material.structure.atom_sites) / child_material.structure.volume, 6)))
+
+    
 
     return child_material
 

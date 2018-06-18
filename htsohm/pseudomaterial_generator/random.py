@@ -1,5 +1,7 @@
 from random import choice, random, randrange, uniform
 
+import numpy as np
+
 from htsohm import config
 from htsohm.db import Material, Structure, LennardJones, AtomSites
 
@@ -73,7 +75,21 @@ def generate_material(run_id, gen, number_of_atomtypes):
     for i in range(random_number_density(number_density_limits, structure)):
         atom_sites.append(AtomSites(
             chemical_id = 'A_{}'.format(choice(range(number_of_atomtypes))),
-            x_frac = random(), y_frac = random(), z_frac = random()))
+            x_frac = random(), y_frac = random(), z_frac = random(), charge = 0.))
+
+    for i in range(len(atom_sites)):
+        a0 = max_charge - abs(atom_sites[i].charge)
+        j = np.random.choice(range(len(atom_sites)))
+        a1 = max_charge - abs(atom_sites[j].charge)
+        dq = uniform(0, min([a0, a1]))
+        atom_sites[i].charge += dq
+        atom_sites[j].charge -= dq
+
+    charges = []
+    for i in range(len(atom_sites)):
+        print(atom_sites[i].charge)
+        charges.append(atom_sites[i].charge)
+    print(sum(charges))
 
     return material
 
