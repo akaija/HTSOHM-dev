@@ -1,75 +1,34 @@
-# The following must be specified:
-#   PARAMETER                               DATA-TYPE        RANGE
-#   'children_per_generation'               int             1 - inf
-#   'number_of_atom_types'                  int             1 - inf
-#   'initial_mutation_strength'             float           0 - 1
-#   'helium_void_fraction_simulation_cycles int             1 - inf
-#   'number_of_convergence_bins'            int             1 - inf
-#   'maximum_number_of_generations'         int             1 - inf
-#   'gas_loading_initialization_cycles  int             1 - inf
-#   'gas_loading_simulation_cycles      int             1 - inf
-#   'number_of_dummy_test_trials'           inf             1 - inf
-#   'dummy_test_tolerance'                  float           0 - inf
-#   'convergence_cutoff_criteria'           float           0 - inf
-#   'number_density_limits'                 float(2)        0 - inf
-#   'lattice_constant_limits'               float(2)        0 - inf
-#   'epsilon_limits'                        float(2)        0 - inf
-#   'sigma_limits'                          float(2)        0 - inf
-#   'charge_limit'                          float(2)        0 - inf
-#   'elemental_charge'                      float           0 - inf
-#   'simulations_directory'                 str             HTSOHM, SCRATCH
-#   'surface_area_simulation_cycles'        int             0 - inf
-
 simulation_directory: 'HTSOHM'
-children_per_generation: 5
-maximum_number_of_generations: 50
-number_of_atom_types: 4
-initial_mutation_strength: 0.2
-number_of_convergence_bins: 10
-convergence_cutoff_criteria: -0.05
-mutation_strength_method: 'adaptive'
-annealing_on: 'on'
-annealing_frequency: 10
-annealing_strength: 0.5
-pseudomaterial_generator: 'mutate'
 
-charge_limit: 0.0
-elemental_charge: 0.0001
-epsilon_limits: [1.258, 513.264]
-lattice_constant_limits: [25.6, 51.2]
-number_density_limits: [1.49e-05, 0.02122]
-sigma_limits: [1.052, 6.549]
-
-retests:
-  number: 3
-  tolerance: 0.25
-
-interactive_mode: 'on'
-selection_mode: 'manual'
+structure_parameters:
+  number_of_atom_types: 4
+  charge_limit: 1.0
+  epsilon_limits: [1.258, 513.264]
+  lattice_constant_limits: [25.6, 51.2]
+  number_density_limits: [1.49e-05, 0.02122]
+  sigma_limits: [1.052, 6.549]
 
 simulations:
-  helium_void_fraction:
+  1:
+    type: 'void_fraction'
+    adsorbate: 'helium'
+    temperature: 298
     simulation_cycles: 100
-    limits: [0, 1]
-    bins: 10
-  gas_adsorption:
+  2:
+    type: 'gas_loading'
     adsorbate: 'methane'
-    external_pressure: [580000, 3500000]
-    external_temperature: 298
+    pressure: 3500000
+    temperature: 298
     initialization_cycles: 100
     simulation_cycles: 100
-    limits: [0, 300]
-    bins: 10
-  surface_area:
+  3:
+    type : 'gas_loading'
+    adsorbate: 'methane'
+    pressure: 580000
+    temperature: 298
+    initialization_cycles: 100
+    simulation_cycles: 100
+  4:
+    type: 'surface_area'
+    adsorbate: 'N2'
     simulation_cycles: 10
-    limits: [0, 4500]
-    bins: 10
-#
-#  ADDITIONAL SIMULATION TYPES
-#    - ARTIFICIAL DATA:
-#      artificial_gas_adsorption:
-#        limits: [0, 300]
-#      artificial_surface_area:
-#        limits: [0, 4500]
-#      artificial_void_fraction:
-#        limits: [0, 1]

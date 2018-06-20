@@ -10,9 +10,9 @@ Framework               0
 FrameworkName           $FrameworkName
 UseChargesFromCIFFile   yes
 UnitCells               2 2 2
-ExternalTemperature     298.0
+ExternalTemperature     $ExternalTemperature
 
-Component 0 MoleculeName                helium
+Component 0 MoleculeName                $MoleculeName
             MoleculeDefinition          TraPPE
             WidomProbability            1.0
             CreateNumberOfMolecules     0

@@ -1,4 +1,3 @@
-
 class Base(object):
 
     def clone(self):

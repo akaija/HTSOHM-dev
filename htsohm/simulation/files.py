@@ -9,5 +9,3 @@ def load_and_subs_template(template_name, params):
     with open(input_path) as input_file:
         template = Template(input_file.read())
     return template.substitute(params)
-
-

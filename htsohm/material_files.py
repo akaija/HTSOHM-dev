@@ -1,35 +1,21 @@
-# standard library imports
-import sys
 import os
-from random import choice, random, randrange, uniform
-import shutil
-from uuid import uuid4
 
-# related third party imports
-import numpy as np
-import yaml
-
-# local application/library specific imports
-import htsohm
-from htsohm import config
-from htsohm.db import session, Material, Structure, LennardJones, AtomSites
-
-def write_cif_file(material, simulation_path):
+def write_cif_file(material, structure, simulation_path):
     """Writes .cif file for structural information.
 
     Args:
 
 
     """
-    file_name = os.path.join(simulation_path, '%s.cif' % material.uuid)
+    file_name = os.path.join(simulation_path, "{}.cif".format(material.seed))
     with open(file_name, "w") as cif_file:
         cif_file.write(
             "\nloop_\n" +
             "_symmetry_equiv_pos_as_xyz\n" +
             "  x,y,z\n" +
-            "_cell_length_a\t{}\n".format(round(material.structure.lattice_constant_a)) +
-            "_cell_length_b\t{}\n".format(round(material.structure.lattice_constant_b)) +
-            "_cell_length_c\t{}\n".format(round(material.structure.lattice_constant_c)) +
+            "_cell_length_a\t{}\n".format(round(structure.lattice_constants.a)) +
+            "_cell_length_b\t{}\n".format(round(structure.lattice_constants.b)) +
+            "_cell_length_c\t{}\n".format(round(structure.lattice_constants.c)) +
             "_cell_angle_alpha  90.0000\n" +
             "_cell_angle_beta   90.0000\n" +
             "_cell_angle_gamma  90.0000\n" +
@@ -41,17 +27,12 @@ def write_cif_file(material, simulation_path):
             "_atom_site_fract_z\n"
             "_atom_site_charge\n"
         )
-        for atom_site in material.structure.atom_sites:
+        for a in structure.atom_sites:
             cif_file.write(
-                    "{0:5} C {1:4f} {2:4f} {3:4f} {4:8f}\n".format(
-                atom_site.chemical_id,
-                round(atom_site.x_frac, 4),
-                round(atom_site.y_frac, 4),
-                round(atom_site.z_frac, 4),
-                round(atom_site.charge, 8)
-            ))
+                    "{0:5} C {1:4f} {2:4f} {3:4f} {4:8f}\n".format(a.chemical_id,
+                        round(a.x, 4), round(a.y, 4), round(a.z, 4), round(a.q, 8)))
 
-def write_mixing_rules(material, simulation_path):
+def write_mixing_rules(structure, simulation_path):
     """Writes .def file for forcefield information.
 
     """
@@ -76,19 +57,15 @@ def write_mixing_rules(material, simulation_path):
             "# general rule tailcorrections\n" +
             "no\n" +
             "# number of defined interactions\n" +
-            "{}\n".format(len(material.structure.lennard_jones) + 10) +
+            "{}\n".format(len(structure.atom_types) + 10) +
             "# type interaction, parameters.    " +
             "IMPORTANT: define shortest matches first, so" +
             " that more specific ones overwrites these\n"
         )
-        for lennard_jones in material.structure.lennard_jones:
+        for lj in structure.atom_types:
             mixing_rules_file.write(
-                "{0:12} lennard-jones {1:8f} {2:8f}\n".format(
-                    lennard_jones.chemical_id,
-                    round(lennard_jones.epsilon, 4),
-                    round(lennard_jones.sigma, 4)
-                )
-            )
+                "{0:12} lennard-jones {1:8f} {2:8f}\n".format(lj.chemical_id,
+                    round(lj.epsilon, 4), round(lj.sigma, 4)))
         for at in adsorbate_LJ_atoms:
             mixing_rules_file.write(
                 "{0:12} lennard-jones {1:8f} {2:8f}\n".format(at[0], at[1], at[2])
@@ -101,7 +78,7 @@ def write_mixing_rules(material, simulation_path):
             "# general mixing rule for Lennard-Jones\n" +
             "Lorentz-Berthelot")
 
-def write_pseudo_atoms(material, simulation_path):
+def write_pseudo_atoms(structure, simulation_path):
     """Writes .def file for chemical information.
 
     Args:
@@ -128,15 +105,13 @@ def write_pseudo_atoms(material, simulation_path):
     with open(file_name, "w") as pseudo_atoms_file:
         pseudo_atoms_file.write(
             "#number of pseudo atoms\n" +
-            "%s\n" % (len(material.structure.lennard_jones) + 10) +
+            "%s\n" % (len(structure.atom_types) + 10) +
             "#type  print   as  chem    oxidation   mass    charge  polarization    B-factor    radii   " +
                  "connectivity  anisotropic anisotrop-type  tinker-type\n")
-        for atom_type in material.structure.lennard_jones:
+        for a in structure.atom_types:
             pseudo_atoms_file.write(
                 "{0:7}  yes  C   C   0   12.0       {0:8}  0.0  1.0  1.0    0  0  absolute  0\n".format(
-                    atom_type.chemical_id, 0.0
-                )
-            )
+                    a.chemical_id, 0.0))
         pseudo_atoms_file.write(
             "N_n2     yes  N   N   0   14.00674   -0.4048   0.0  1.0  0.7    0  0  relative  0\n" +
             "N_com    no   N   -   0    0.0        0.8096   0.0  1.0  0.7    0  0  relative  0\n" +

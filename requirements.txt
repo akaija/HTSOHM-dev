@@ -4,5 +4,6 @@ pytest ~= 3.0
 pyyaml ~= 3.11
 SQLAlchemy ~= 1.0
 click ~= 6.6
+pycrypto ~= 2.6
 
 git+https://github.com/WilmerLab/raspa2

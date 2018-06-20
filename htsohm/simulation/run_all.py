@@ -2,22 +2,18 @@ from htsohm import config
 from htsohm import simulation
 
 def get_simulation(simulation_type):
-    if simulation_type == 'gas_adsorption':
-        return simulation.gas_adsorption
+    if  simulation_type == 'gas_adsorption_0':
+        return simulation.gas_adsorption_0
+    elif  simulation_type == 'gas_adsorption_1':
+        return simulation.gas_adsorption_1
     elif simulation_type == 'surface_area':
         return simulation.surface_area
-    elif simulation_type == 'helium_void_fraction':
-        return simulation.helium_void_fraction
-    elif simulation_type == 'artificial_gas_adsorption':
-        return simulation.artificial_gas_adsorption
-    elif simulation_type == 'artificial_surface_area':
-        return simulation.artificial_surface_area
-    elif simulation_type == 'artificial_void_fraction':
-        return simulation.artificial_void_fraction
+    elif simulation_type == 'void_fraction':
+        return simulation.void_fraction
     else:
         raise Exception('Simulation-type not found!')
 
-def run_all_simulations(material):
+def run_all_simulations(material, structure):
     """Simulate helium void fraction, gas loading, and surface area.
 
     Args:
@@ -28,9 +24,9 @@ def run_all_simulations(material):
     corresponding bins to row in database corresponding to the input-material.
         
     """
-    simulation_config = config['simulations']
-    for simulation_type in simulation_config:
-        results = get_simulation(simulation_type).run(material, simulation_config[simulation_type])
-        material.update_from_dict(results)
+    for simulation_number in config["simulations"]:
+        simulation_config = config["simulations"][simulation_number]
+        getattr(simulation, simulation_config["type"]).run(material, structure, simulation_config)
+        #material.update_from_dict(results)
 
 

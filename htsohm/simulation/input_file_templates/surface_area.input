@@ -13,7 +13,7 @@ UseChargesFromCIFFile       yes
 UnitCells                   2 2 2
 SurfaceAreaProbeDistance    Sigma
 
-Component 0 MoleculeName                N2
+Component 0 MoleculeName                $MoleculeName
             StartingBead                0
             MoleculeDefinition          TraPPE
             SurfaceAreaProbability      1.0

@@ -1,7 +1,5 @@
-# from htsohm.db.runDB_declarative import *
-
-# standard library imports
 import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -21,11 +19,10 @@ session = sessionmaker(bind=engine)()
 
 # Import all models
 from htsohm.db.base import Base
+from htsohm.db.gas_loading import GasLoading
+from htsohm.db.surface_area import SurfaceArea
+from htsohm.db.void_fraction import VoidFraction
 from htsohm.db.material import Material
-from htsohm.db.mutation_strength import MutationStrength
-from htsohm.db.structure import Structure
-from htsohm.db.atom_sites import AtomSites
-from htsohm.db.lennard_jones import LennardJones
 
 # Create tables in the engine, if they don't exist already.
 Base.metadata.create_all(engine)

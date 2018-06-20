@@ -11,10 +11,10 @@ from htsohm import config
 from htsohm.material_files import write_cif_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 from htsohm.simulation.files import load_and_subs_template
-from htsohm.db import SurfaceArea
+from htsohm.db import VoidFraction
 
 def write_raspa_file(filename, seed, simulation_config):
-    """Writes RASPA input file for calculating surface area.
+    """Writes RASPA input file for calculating helium void fraction.
 
     Args:
         filename (str): path to input file.
@@ -26,12 +26,13 @@ def write_raspa_file(filename, seed, simulation_config):
     """
     # Load simulation parameters from config
     values = {
-            "NumberOfCycles"    : simulation_config["simulation_cycles"],
-            "FrameworkName"     : seed,
-            "MoleculeName"      : simulation_config["adsorbate"]}
+            "NumberOfCycles"         : simulation_config["simulation_cycles"],
+            "FrameworkName"          : seed,
+            "ExternalTemperature"    : simulation_config["temperature"],
+            "MoleculeName"           : simulation_config["adsorbate"]}
 
     # Load template and replace values
-    input_data = load_and_subs_template("input_file_templates/surface_area.input", values)
+    input_data = load_and_subs_template("input_file_templates/void_fraction.input", values)
 
     # Write simulation input-file
     with open(filename, "w") as raspa_input_file:
@@ -44,38 +45,30 @@ def parse_output(output_file, material, simulation_config):
         output_file (str): path to simulation output file.
 
     Returns:
-        results (dict): total unit cell, gravimetric, and volumetric surface
-            areas.
+        results (dict): average Widom Rosenbluth-weight.
 
     """
-    surface_area = SurfaceArea()
-    surface_area.adsorbate = simulation_config["adsorbate"]
+    void_fraction = VoidFraction()
+    void_fraction.adsorbate = simulation_config["adsorbate"]
+    void_fraction.temperature = simulation_config["temperature"]
 
     with open(output_file) as origin:
-        count = 0
         for line in origin:
-            if "Surface area" in line:
-                if count == 0:
-                    surface_area.unit_cell_surface_area = float(line.split()[2])
-                    count = count + 1
-                elif count == 1:
-                    surface_area.gravimetric_surface_area = float(line.split()[2])
-                    count = count + 1
-                elif count == 2:
-                    surface_area.volumetric_surface_area = float(line.split()[2])
+            if not "Average Widom Rosenbluth-weight:" in line:
+                continue
+            void_fraction.void_fraction = float(line.split()[4])
+        print("\nVOID FRACTION : {}\n".format(void_fraction.void_fraction))
 
-    print("\nSURFACE AREA : {} m^2/cm^3\n".format(surface_area.volumetric_surface_area))
-
-    material.surface_area.append(surface_area)
+    material.void_fraction.append(void_fraction)
 
 def run(material, structure, simulation_config):
-    """Runs surface area simulation.
+    """Runs void fraction simulation.
 
     Args:
         material (Material): material record.
 
     Returns:
-        results (dict): surface area simulation results.
+        results (dict): void fraction simulation results.
 
     """
     # Determine where to write simulation input/output files, create directory
@@ -88,12 +81,12 @@ def run(material, structure, simulation_config):
     else:
         print("OUTPUT DIRECTORY NOT FOUND.")
     output_dir = os.path.join(path, "output_{}_{}".format(material.seed, uuid4()))
-    print("Output directory :\t{}".format(output_dir))
+    print("Output directory : {}".format(output_dir))
     os.makedirs(output_dir, exist_ok=True)
 
     # Write simulation input-files
     # RASPA input-file
-    filename = os.path.join(output_dir, "SurfaceArea.input")
+    filename = os.path.join(output_dir, "VoidFraction.input")
     write_raspa_file(filename, material.seed, simulation_config)
     # Pseudomaterial cif-file
     write_cif_file(material, structure, output_dir)
@@ -111,18 +104,17 @@ def run(material, structure, simulation_config):
             print("Time             : {}".format(datetime.now().time().isoformat()))
             print("Simulation type  : {}".format(simulation_config["type"]))
             print("Probe            : {}".format(simulation_config["adsorbate"]))
+            print("Temperature      : {}".format(simulation_config["temperature"]))
             filename = "output_{}_2.2.2_298.000000_0.data".format(material.seed)
             output_file = os.path.join(output_dir, "Output", "System_0", filename)
-
             while not Path(output_file).exists():
-                subprocess.run(["simulate", "./SurfaceArea.input"], check=True,
-                        cwd=output_dir)
+                process = subprocess.run(["simulate", "./VoidFraction.input"], check=True, cwd=output_dir)
 
             # Parse output
             parse_output(output_file, material, simulation_config)
             shutil.rmtree(output_dir, ignore_errors=True)
             sys.stdout.flush()
-        except (FileNotFoundError, KeyError) as err:
+        except (FileNotFoundError, IndexError, KeyError) as err:
             print(err)
             print(err.args)
             continue
