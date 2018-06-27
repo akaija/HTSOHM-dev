@@ -8,5 +8,6 @@ setup(
     author = 'A Reino Kaija',
     author_email = 'ark111@pitt.edu',
     url = 'https://github.com/akaija/HTSOHM-dev',
-    packages = ['htsohm', 'htsohm.db', 'htsohm.simulation']
+    packages = ['htsohm', 'htsohm.db', 'htsohm.simulation',
+                'htsohm.pseudomaterial_generator']
 )
