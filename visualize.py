@@ -145,7 +145,7 @@ def add_periodic_segments(atom_site, chemical_species, mesh_material, seed, a, b
     
     return site_count
 
-def visualize_pseudo_material(seed):
+def visualize_pseudo_material(seed, color_by):
     print("seed   :\t{}".format(seed))
     seed = int(seed)
 
@@ -190,7 +190,15 @@ def visualize_pseudo_material(seed):
         for species in chemical_species:
             if species['chemical'] == atom_site.chemical_id:
                 radius = species['radius']
-                mesh_material = species['material']
+                if color_by == "epsilon":
+                    mesh_material = species['material']
+                elif color_by == "charge":
+                    val = (atom_site.q + 1) / 2
+                    color = cm.seismic(val)[:3]
+                    material = MakeMaterial("site_{}".format(site_count), color, (1,1,1) ,1)
+                    mesh_material = material
+                else:
+                    print("`color_by` not found...")
         x = atom_site.x * a
         y = atom_site.y * b
         z = atom_site.z * c

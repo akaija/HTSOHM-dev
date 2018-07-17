@@ -26,4 +26,4 @@ import imp
 imp.reload(visualize)
 
 if __name__ == "__main__":
-    visualize.visualize_pseudo_material(str(sys.argv[5]))
+    visualize.visualize_pseudo_material(str(sys.argv[5]), str(sys.argv[6]))
