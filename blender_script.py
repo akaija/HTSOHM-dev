@@ -9,10 +9,10 @@ if blend_dir not in sys.path:
     sys.path.append(blend_dir)
 
 venv_dir = os.environ['VIRTUAL_ENV']
-lib_dir = os.path.join(venv_dir, 'lib', 'python3.5', 'site-packages')
+lib_dir = os.path.join(venv_dir, 'lib', 'python3.7', 'site-packages')
 if lib_dir not in sys.path:
     sys.path.append(lib_dir)
-lib64_dir = os.path.join(venv_dir, 'lib64', 'python3.5', 'site-packages')
+lib64_dir = os.path.join(venv_dir, 'lib64', 'python3.7', 'site-packages')
 if lib64_dir not in sys.path:
     sys.path.append(lib64_dir)
 
