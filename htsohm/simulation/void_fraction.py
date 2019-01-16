@@ -8,7 +8,7 @@ from string import Template
 from pathlib import Path
 
 from htsohm import config
-from htsohm.material_files import write_cif_file, write_mixing_rules
+from htsohm.material_files import write_mol_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
 from htsohm.simulation.files import load_and_subs_template
 from htsohm.db import VoidFraction
@@ -88,8 +88,8 @@ def run(material, structure, simulation_config):
     # RASPA input-file
     filename = os.path.join(output_dir, "VoidFraction.input")
     write_raspa_file(filename, material.seed, simulation_config)
-    # Pseudomaterial cif-file
-    write_cif_file(material, structure, output_dir)
+    # Pseudomaterial mol-file
+    write_mol_file(material, structure, output_dir)
     # Lennard-Jones parameters, force_field_mixing_rules.def
     write_mixing_rules(structure, output_dir)
     # Pseudoatom definitions, pseudo_atoms.def (placeholder values)

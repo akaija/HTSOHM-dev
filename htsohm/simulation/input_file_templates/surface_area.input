@@ -6,10 +6,11 @@ PrintPropertiesEvery    1
 
 Forcefield              $FrameworkName
 CutOff                  12.8
+UseChargesFromMOLFile   yes
 
 Framework                   0
 FrameworkName               $FrameworkName
-UseChargesFromCIFFile       yes
+InputFileType               mol
 UnitCells                   2 2 2
 SurfaceAreaProbeDistance    Sigma
 

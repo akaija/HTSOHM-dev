@@ -1,36 +1,38 @@
 import os
 
-def write_cif_file(material, structure, simulation_path):
-    """Writes .cif file for structural information.
-
-    Args:
-
-
-    """
-    file_name = os.path.join(simulation_path, "{}.cif".format(material.seed))
-    with open(file_name, "w") as cif_file:
-        cif_file.write(
-            "\nloop_\n" +
-            "_symmetry_equiv_pos_as_xyz\n" +
-            "  x,y,z\n" +
-            "_cell_length_a\t{}\n".format(round(structure.lattice_constants.a)) +
-            "_cell_length_b\t{}\n".format(round(structure.lattice_constants.b)) +
-            "_cell_length_c\t{}\n".format(round(structure.lattice_constants.c)) +
-            "_cell_angle_alpha  90.0000\n" +
-            "_cell_angle_beta   90.0000\n" +
-            "_cell_angle_gamma  90.0000\n" +
-            "loop_\n" +
-            "_atom_site_label\n" +
-            "_atom_site_type_symbol\n" +
-            "_atom_site_fract_x\n" +
-            "_atom_site_fract_y\n" +
-            "_atom_site_fract_z\n"
-            "_atom_site_charge\n"
-        )
-        for a in structure.atom_sites:
-            cif_file.write(
-                    "{0:5} C {1:4f} {2:4f} {3:4f} {4:8f}\n".format(a.chemical_id,
-                        round(a.x, 4), round(a.y, 4), round(a.z, 4), round(a.q, 8)))
+def write_mol_file(material, structure, simulation_path):
+    """Writes .mol file for structural information."""
+    file_name = os.path.join(simulation_path, "{}.mol".format(material.seed))
+    with open(file_name, "w") as mol_file:
+        mol_file.write(
+                " Molecule_name: {}\n".format(material.seed) +
+                "\n" +
+                "  Coord_Info: Listed Cartesian None\n" +
+                "        {}\n".format(structure.n()))
+        for i in range(structure.n()):
+            a = structure.atom_sites[i]
+            mol_file.write(
+                    "{:6} {:10.4f} {:10.4f} {:10.4f}  {:5} {:10.8f}  0  0\n".format(
+                        i + 1, round(structure.atom_sites[i].x * structure.lattice_constants.a, 4),
+                        round(structure.atom_sites[i].y * structure.lattice_constants.b, 4),
+                        round(structure.atom_sites[i].z * structure.lattice_constants.c, 4),
+                        structure.atom_sites[i].chemical_id, round(structure.atom_sites[i].q, 8)))
+        mol_file.write(
+                "\n" +
+                "\n" +
+                "\n" +
+                "  Fundcell_Info: Listed\n" +
+                "        {:10.4f}       {:10.4f}       {:10.4f}\n".format(
+                    round(structure.lattice_constants.a, 4),
+                    round(structure.lattice_constants.b, 4),
+                    round(structure.lattice_constants.c, 4)) +
+                "           90.0000          90.0000          90.0000\n" +
+                "           0.00000          0.00000          0.00000\n" +
+                "        {:10.4f}       {:10.4f}       {:10.4f}\n".format(
+                    round(structure.lattice_constants.a, 4),
+                    round(structure.lattice_constants.b, 4),
+                    round(structure.lattice_constants.c, 4)) +
+                "\n")
 
 def write_mixing_rules(structure, simulation_path):
     """Writes .def file for forcefield information.
@@ -110,8 +112,8 @@ def write_pseudo_atoms(structure, simulation_path):
                  "connectivity  anisotropic anisotrop-type  tinker-type\n")
         for a in structure.atom_types:
             pseudo_atoms_file.write(
-                "{0:7}  yes  C   C   0   12.0       {0:8}  0.0  1.0  1.0    0  0  absolute  0\n".format(
-                    a.chemical_id, 0.0))
+                "{0:7}  yes  C   C   0   12.0       0.0  0.0  1.0  1.0    0  0  absolute  0\n".format(
+                    a.chemical_id))
         pseudo_atoms_file.write(
             "N_n2     yes  N   N   0   14.00674   -0.4048   0.0  1.0  0.7    0  0  relative  0\n" +
             "N_com    no   N   -   0    0.0        0.8096   0.0  1.0  0.7    0  0  relative  0\n" +

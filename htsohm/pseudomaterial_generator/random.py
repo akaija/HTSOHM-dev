@@ -93,7 +93,7 @@ def generate_material(run_id, seed, config):
     seed += 3
 
     # store unit cell volume to row
-    material.ap_unit_cell_volume = structure.volume()
+    material.unit_cell_volume = structure.volume()
     
     # assign Lennard-Jones parameters
     for chemical_id in range(number_of_atom_types):
@@ -105,40 +105,61 @@ def generate_material(run_id, seed, config):
     
     # calculate random number of atom-sites
     number_of_atoms = random_number_density(number_density_limits, structure, random_number(seed))
+    print("Number of atoms : {}".format(number_of_atoms))
     seed += 1
 
     # store number density to row
-    material.ap_number_density = number_of_atoms / structure.volume()
+    material.number_density = number_of_atoms / structure.volume()
 
     # assign atom-site positions and calculate avg. sigma/epsilon values
     sigma_sum, epsilon_sum = 0, 0
     for i in range(number_of_atoms):
-        chemical_id = int(uniform_selection(0, number_of_atom_types - 1, random_number(seed)))
+        # select chemical species
+        chemical_id = int(uniform_selection(0, number_of_atom_types, random_number(seed)))
+        seed += 1
+
+        # sum LJ parameters for averaging later
         sigma_sum += structure.atom_types[chemical_id].sigma
         epsilon_sum += structure.atom_types[chemical_id].epsilon
-        structure.atom_sites.append(
-                AtomSite("A_{}".format(chemical_id), random_number(seed), random_number(seed + 1),
-                    random_number(seed + 2)))
-        seed += 3
-    material.ap_average_sigma = sigma_sum / structure.n()
-    material.ap_average_epsilon = epsilon_sum / structure.n()
+
+        # select position sufficiently distanced from all other atom-sites
+        while True:
+            x, y, z = random_number(seed), random_number(seed + 1), random_number(seed + 2)
+            seed += 3
+            distance_passed = True
+            for site in structure.atom_sites:
+                distance_squared = (x - site.x) ** 2 + (y - site.y) ** 2 + (z - site.z) ** 2
+                if distance_squared <= 10 ** -4:
+                    distance_passed = False
+                    break
+            if distance_passed == True:
+                break
+        structure.atom_sites.append(AtomSite("A_{}".format(chemical_id), x, y, z))
+    material.average_sigma = sigma_sum / structure.n()
+    material.average_epsilon = epsilon_sum / structure.n()
     
     # assign atom-site partial charges
     for i in range(structure.n()):
         a0 = max_charge - abs(structure.atom_sites[i].q)
         j = int(uniform_selection(0, structure.n() - 1, random_number(seed)))
         a1 = max_charge - abs(structure.atom_sites[j].q)
-        dq = uniform_selection(0, min([a0, a1]), random_number(seed+ 1))
+        dq = float("{0:.6f}".format(
+            uniform_selection(0, min([a0, a1]), random_number(seed + 1))))
         structure.atom_sites[i].q += dq
         structure.atom_sites[j].q -= dq
         seed += 2
+
+    net_charge = 0
+    for i in range(structure.n()):
+        net_charge += structure.atom_sites[i].q
+    print("FRAMEWORK NET CHARGE :\t{}".format(net_charge))
 
     return material, structure
 
 def new_material(run_id, config):
     # number of digits for seed
-    n = 36
+    n = 9
     # get seed value (initial value to be incremented later)
-    seed = get_n_digit_seed(36)
+    seed = get_n_digit_seed(n)
     print("CREATING MATERIAL WITH SEED : {}".format(seed))
     return generate_material(run_id, seed, config)

@@ -22,6 +22,11 @@ class Material(Base):
     average_epsilon      = Column(Float)
     average_sigma        = Column(Float)
 
+    # structure property bins
+    density_bin  = Column(Integer)
+    epsilon_bin  = Column(Integer)
+    sigma_bin    = Column(Integer)
+    
     # relationships
     gas_loading       = relationship("GasLoading")
     surface_area      = relationship("SurfaceArea")
