@@ -20,10 +20,10 @@ pwd_dir = os.environ['PWD']
 if pwd_dir not in sys.path:
     sys.path.append(pwd_dir)
 
-import visualize
+import render
 import imp
 
-imp.reload(visualize)
+imp.reload(render)
 
 if __name__ == "__main__":
-    visualize.visualize_pseudo_material(str(sys.argv[5]), str(sys.argv[6]), str(sys.argv[7]))
+    render.render_from_seed(str(sys.argv[5]), str(sys.argv[6]), str(sys.argv[7]))

@@ -4,7 +4,7 @@ from random import randint
 from Crypto.Hash import SHA256
 from zlib import crc32
 
-from htsohm.db import Material
+#from htsohm.db import Material
 from htsohm.structure import Structure, LatticeConstants, AtomSite, AtomType
 
 def get_n_digit_seed(n):
@@ -80,7 +80,7 @@ def generate_material(run_id, seed, config):
 
     ########################################################################
     # create database row
-    material = Material(run_id, seed)
+#    material = Material(run_id, seed)
 
     # create structure object
     structure = Structure()
@@ -93,7 +93,7 @@ def generate_material(run_id, seed, config):
     seed += 3
 
     # store unit cell volume to row
-    material.unit_cell_volume = structure.volume()
+#    material.unit_cell_volume = structure.volume()
     
     # assign Lennard-Jones parameters
     for chemical_id in range(number_of_atom_types):
@@ -109,7 +109,7 @@ def generate_material(run_id, seed, config):
     seed += 1
 
     # store number density to row
-    material.number_density = number_of_atoms / structure.volume()
+#    material.number_density = number_of_atoms / structure.volume()
 
     # assign atom-site positions and calculate avg. sigma/epsilon values
     sigma_sum, epsilon_sum = 0, 0
@@ -135,8 +135,8 @@ def generate_material(run_id, seed, config):
             if distance_passed == True:
                 break
         structure.atom_sites.append(AtomSite("A_{}".format(chemical_id), x, y, z))
-    material.average_sigma = sigma_sum / structure.n()
-    material.average_epsilon = epsilon_sum / structure.n()
+#    material.average_sigma = sigma_sum / structure.n()
+#    material.average_epsilon = epsilon_sum / structure.n()
     
     # assign atom-site partial charges
     for i in range(structure.n()):
@@ -153,6 +153,8 @@ def generate_material(run_id, seed, config):
     for i in range(structure.n()):
         net_charge += structure.atom_sites[i].q
     print("FRAMEWORK NET CHARGE :\t{}".format(net_charge))
+
+    material = []
 
     return material, structure
 
