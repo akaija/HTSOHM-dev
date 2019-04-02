@@ -2,6 +2,7 @@ simulation_directory: 'HTSOHM'
 
 general:
   bins: 20
+  seed_population: 1000
 
 structure_parameters:
   number_of_atom_types: 4

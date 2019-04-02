@@ -1,7 +1,9 @@
 numpy ~= 1.11
+pandas
 psycopg2 ~= 2.6
 pytest ~= 3.0
 pyyaml ~= 3.11
+sklearn
 SQLAlchemy ~= 1.0
 click ~= 6.6
 pycrypto ~= 2.6
