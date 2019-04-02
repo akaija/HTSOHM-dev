@@ -10,7 +10,7 @@ from pathlib import Path
 from htsohm import config
 from htsohm.material_files import write_mol_file, write_mixing_rules
 from htsohm.material_files import write_pseudo_atoms, write_force_field
-from htsohm.simulation.files import load_and_subs_template
+from htsohm.simulation.utilities import calc_bin, load_and_subs_template
 from htsohm.db import SurfaceArea
 
 def write_raspa_file(filename, seed, simulation_config):
@@ -66,6 +66,10 @@ def parse_output(output_file, material, simulation_config):
 
     print("\nSURFACE AREA : {} m^2/cm^3\n".format(surface_area.volumetric_surface_area))
 
+    # Calculate bin
+    surface_area.bin_value = calc_bin(surface_area.volumetric_surface_area,
+            *simulation_config["limits"], config["general"]["bins"])
+ 
     material.surface_area.append(surface_area)
 
 def run(material, structure, simulation_config):

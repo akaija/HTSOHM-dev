@@ -1,5 +1,8 @@
 simulation_directory: 'HTSOHM'
 
+general:
+  bins: 20
+
 structure_parameters:
   number_of_atom_types: 4
   charge_limit: 1.0
@@ -14,6 +17,7 @@ simulations:
     adsorbate: 'helium'
     temperature: 298
     simulation_cycles: 100
+    limits: [0, 1]
   2:
     type: 'gas_loading'
     adsorbate: 'methane'
@@ -21,14 +25,9 @@ simulations:
     temperature: 298
     initialization_cycles: 100
     simulation_cycles: 100
+    limits: [0, 350]
   3:
-    type : 'gas_loading'
-    adsorbate: 'methane'
-    pressure: 580000
-    temperature: 298
-    initialization_cycles: 100
-    simulation_cycles: 100
-  4:
     type: 'surface_area'
     adsorbate: 'N2'
     simulation_cycles: 10
+    limits: [0, 4500]

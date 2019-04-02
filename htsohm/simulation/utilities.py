@@ -9,3 +9,9 @@ def load_and_subs_template(template_name, params):
     with open(input_path) as input_file:
         template = Template(input_file.read())
     return template.substitute(params)
+
+def calc_bin(value, min_, max_, bins):
+    bin_ = (value - min_) // ((max_ - min_) / bins)
+    bin_ = min(bin_, bins - 1)
+    bin_ = max(bin_, 0)
+    return bin_
